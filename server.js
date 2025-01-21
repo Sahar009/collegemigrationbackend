@@ -4,7 +4,7 @@ import cors from 'cors'
 import express from 'express'
 import { connectToDB } from './database/db.js'
 import errorMiddleware from './middlewares/errorMiddleware.js'
-
+import router from './routes/index.js'
 
 const app = express()
 const port = process.env.PORT
@@ -16,7 +16,7 @@ app.use(express.urlencoded({extended: true}))
 
 
 app.use(cors())
-// router(app)
+router(app)
 
 app.get('/', (req, res) => {
     res.json({success: true, message: 'Backend Connected Successfully'})
