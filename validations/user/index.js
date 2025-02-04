@@ -49,10 +49,8 @@ lastname: {
     }
   },
   businessName: {
+    optional: true,
     trim: true,
-    notEmpty: {
-      errorMessage: 'Business name is required'
-    },
     isLength: {
       options: { min: 2, max: 100 },
       errorMessage: 'Business name must be between 2 and 100 characters'
