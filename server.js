@@ -7,7 +7,7 @@ import errorMiddleware from './middlewares/errorMiddleware.js'
 import router from './routes/index.js'
 
 const app = express()
-const port = process.env.PORT
+const port = process.env.PORT || 8000
 
 
 // middlewares
@@ -15,7 +15,10 @@ app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 
 
-app.use(cors())
+app.use(cors({
+  origin: '*',
+  credentials: true
+}))
 router(app)
 
 app.get('/', (req, res) => {
@@ -33,8 +36,18 @@ app.all('*', (req, res) => {
     });
   });
 
-connectToDB()
+// Connect to database before starting server
+const startServer = async () => {
+    try {
+        await connectToDB();
+        
+        app.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+};
 
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`)
-})
+startServer();

@@ -55,7 +55,7 @@ export const MemberAgent = sequelize.define('MemberAgent', {
         defaultValue: DataTypes.NOW
     }
 }, {
-    timestamps: false,
-    tableName: 'member_agent'
+    timestamps: true,
+    tableName: 'member_agents'
 });
 
