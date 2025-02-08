@@ -5,7 +5,7 @@ import express from 'express'
 import { connectToDB } from './database/db.js'
 import errorMiddleware from './middlewares/errorMiddleware.js'
 import router from './routes/index.js'
-
+import { cloudinary } from './config/cloudinaryConfig.js';
 const app = express()
 const port = process.env.PORT || 8000
 
@@ -13,6 +13,8 @@ const port = process.env.PORT || 8000
 // middlewares
 app.use(express.json())
 app.use(express.urlencoded({extended: true}))
+
+
 
 
 app.use(cors({
