@@ -34,7 +34,7 @@ export const connectToDB = async () => {
     const { Member } = await import('../schema/memberSchema.js');
     const { Program } = await import('../schema/programSchema.js');
     const { MemberAgent } = await import('../schema/memberAgentSchema.js');
-    const { Application } = await import('../schema/applicationSchema.js');
+    const { Application } = await import('../schema/ApplicationSchema.js');
     const { ApplicationDocument } = await import('../schema/applicationDocumentSchema.js');
     const { setupAssociations } = await import('../schema/associations.js');
     
