@@ -28,15 +28,21 @@ const sequelize = new Sequelize(
 export const connectToDB = async () => {
   try {
     await sequelize.authenticate()
-    console.log("Connected to College-migration  database successfully.")
+    console.log("Connected to College-migration database successfully.")
     
-    // Import all your models here
+    // Import models in order of dependencies
+    const { Member } = await import('../schema/memberSchema.js');
     const { Program } = await import('../schema/programSchema.js');
     const { MemberAgent } = await import('../schema/memberAgentSchema.js');
-    // Import other models as needed...
+    const { Application } = await import('../schema/applicationSchema.js');
+    const { ApplicationDocument } = await import('../schema/applicationDocumentSchema.js');
+    const { setupAssociations } = await import('../schema/associations.js');
     
-    // Sync all models with the database
-    await sequelize.sync({ alter: true }); // This will create/update tables
+    // Set up all model associations
+    setupAssociations();
+    
+    // Sync without altering existing tables
+    await sequelize.sync();
     console.log('Database schemas synchronized successfully');
     
   } catch (error) {
@@ -46,7 +52,6 @@ export const connectToDB = async () => {
       sqlState: error.parent?.sqlState
     })
     
-    // Additional error information
     if (error.parent?.code === 'ECONNREFUSED') {
       console.error("Could not connect to database. Please check if:")
       console.error("1. Database credentials are correct")
@@ -54,7 +59,7 @@ export const connectToDB = async () => {
       console.error("3. Database port is open")
     }
     
-    throw error // Rethrow to handle it in server.js
+    throw error
   }
 }
 

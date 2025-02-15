@@ -51,6 +51,10 @@ export const Program = sequelize.define('Program', {
         type: DataTypes.STRING(255),
         allowNull: true
     },
+    programImage: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
     applicationFee: {
         type: DataTypes.STRING(255),
         allowNull: false

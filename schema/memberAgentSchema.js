@@ -8,24 +8,21 @@ export const MemberAgent = sequelize.define('MemberAgent', {
         primaryKey: true,
         autoIncrement: true
     },
+    email: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        unique: true
+    },
     firstname: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: false
     },
     lastname: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: false
     },
-    email: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-        validate: {
-            isEmail: true
-        }
-    },
     phone: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     gender: {
@@ -58,6 +55,12 @@ export const MemberAgent = sequelize.define('MemberAgent', {
 }, {
     timestamps: true,
     tableName: 'member_agents',
+    indexes: [
+        {
+            name: 'idx_agent_name',
+            fields: ['firstname', 'lastname']
+        }
+    ],
     hooks: {
         beforeCreate: (agent) => {
             if (!agent.businessName) {

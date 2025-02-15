@@ -6,7 +6,8 @@ import {
     updateProgramController, 
     deleteProgramController,
     searchProgramsController,
-    filterProgramsController
+    filterProgramsController,
+    createProgram 
 } from '../../controllers/programController.js';
 
 const programRouter = express.Router();
@@ -22,4 +23,10 @@ programRouter.delete('/:id', deleteProgramController);
 programRouter.get('/search', searchProgramsController);
 programRouter.get('/filter', filterProgramsController);
 
+
+// add program route
+programRouter.post(
+    '/create',
+    createProgram
+);
 export default programRouter; 

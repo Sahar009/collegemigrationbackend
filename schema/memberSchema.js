@@ -7,6 +7,14 @@ export const Member = sequelize.define('Member', {
         primaryKey: true,
         autoIncrement: true
     },
+    email: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        unique: true,
+        validate: {
+            isEmail: true
+        }
+    },
     firstname: {
         type: DataTypes.STRING(255),
         allowNull: false
@@ -19,14 +27,10 @@ export const Member = sequelize.define('Member', {
         type: DataTypes.STRING(255),
         allowNull: true
     },
-    email: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-        unique: true
-    },
     phone: {
         type: DataTypes.STRING(255),
-        allowNull: true
+        allowNull: true,
+        unique: true
     },
     gender: {
         type: DataTypes.ENUM('male', 'female', 'other'),
@@ -116,5 +120,17 @@ export const Member = sequelize.define('Member', {
                 member.regDate = new Date().toISOString();
             }
         }
-    }
-}); 
+    },
+    indexes: [
+        {
+            name: 'idx_member_search',
+            fields: ['firstname', 'lastname', 'email']
+        },
+        {
+            name: 'idx_member_location',
+            fields: ['homeCountry', 'homeState']
+        }
+    ]
+});
+
+export default Member; 

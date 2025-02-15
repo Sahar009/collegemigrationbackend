@@ -1,0 +1,45 @@
+import express from 'express';
+import { submitApplicationDocuments, getApplicationDocumentsByMember } from '../../controllers/applicationDocumentController.js';
+import { authenticateUser } from '../../middlewares/auth-middleware.js';
+import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
+import { checkEligibility, getAllApplications, getApplicationStatus, initiateApplication } from '../../controllers/applicationController.js';
+
+const applicationRouter = express.Router();
+
+// Routes
+applicationRouter.put('/documents', 
+    authenticateUser, 
+    uploadFields,
+    handleUploadError,
+    submitApplicationDocuments
+);
+
+applicationRouter.get('/documents', 
+    authenticateUser, 
+    getApplicationDocumentsByMember
+);
+// Initiate new application
+applicationRouter.post('/initiate', 
+    authenticateUser, 
+    initiateApplication
+);
+
+// Get application status
+applicationRouter.get('/status/:applicationId', 
+    authenticateUser, 
+    getApplicationStatus
+);
+
+// Get all applications
+applicationRouter.get('/all', 
+    authenticateUser, 
+    getAllApplications
+);
+
+applicationRouter.get('/check-eligibility', 
+    authenticateUser, 
+    checkEligibility
+);
+
+
+export default applicationRouter; 

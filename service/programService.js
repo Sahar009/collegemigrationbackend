@@ -7,22 +7,42 @@ import { generateCacheKey, setCache, getCache, clearCache } from '../utils/cache
 // Create Program Service
 export const createProgramService = async (data, callback) => {
     try {
-        const newProgram = await Program.create(data);
+        const newProgram = await Program.create({
+            programName: data.programName,
+            degree: data.degree,
+            degreeLevel: data.degreeLevel,
+            schoolName: data.schoolName,
+            language: data.language,
+            semesters: data.semesters,
+            fee: data.fee,
+            location: data.location,
+            about: data.about || null,
+            features: data.features || null,
+            schoolLogo: data.schoolLogo || null,
+            programImage: data.programImage || null,
+            applicationFee: data.applicationFee,
+            applicationDeadline: data.applicationDeadline
+        });
         
         // Clear all program caches
         await clearCache('programs:*');
 
-        return callback(
-            messageHandler("Program created successfully", true, SUCCESS, newProgram)
-        );
+        return callback(messageHandler(
+            "Program created successfully", 
+            true, 
+            SUCCESS, 
+            newProgram
+        ));
 
     } catch (error) {
         console.error('Create program error:', error);
-        return callback(
-            messageHandler("An error occurred while creating program", false, BAD_REQUEST)
-        );
+        return callback(messageHandler(
+            "An error occurred while creating program", 
+            false, 
+            BAD_REQUEST
+        ));
     }
-};
+};  
 
 // Get All Programs Service with search and filter
 export const getAllProgramsService = async (query, callback) => {

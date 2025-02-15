@@ -7,6 +7,21 @@ import {
     searchProgramsService,
     filterProgramsService
 } from '../service/programService.js';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+
+// Configure Cloudinary storage
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'programs',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+        transformation: [{ width: 1000, height: 1000, crop: 'limit' }]
+    }
+});
+
+const upload = multer({ storage: storage });
 
 // Create Program Controller
 export const createProgramController = async (req, res) => {
@@ -94,3 +109,10 @@ export const filterProgramsController = async (req, res) => {
         });
     });
 }; 
+
+
+export const createProgram = (req, res) => {
+    createProgramService(req.body, (response) => {
+        return res.status(response.statusCode).json(response);
+    });
+}

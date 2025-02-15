@@ -1,67 +1,54 @@
 import multer from 'multer';
 import { storage } from '../config/cloudinaryConfig.js';
 
-// Multer configuration
+// Define allowed file types
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+
+// File filter function
+const fileFilter = (req, file, cb) => {
+    // Check if the file type is allowed
+    if (ALLOWED_FILE_TYPES.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Invalid file type. Only JPEG, PNG and PDF files are allowed.'), false);
+    }
+};
+
+// Configure multer
 const upload = multer({
     storage: storage,
+    fileFilter: fileFilter,
     limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-    },
-    fileFilter: (req, file, cb) => {
-        // Check file type
-        if (!file.mimetype.startsWith('image/')) {
-            cb(new Error('Invalid file type. Only images are allowed.'), false);
-            return;
-        }
-
-        // Validate based on field name
-        switch (file.fieldname) {
-            case 'photo':
-            case 'idScanFront':
-            case 'idScanBack':
-                cb(null, true);
-                break;
-            default:
-                cb(new Error('Invalid field name for file upload'), false);
-        }
+        fileSize: 5 * 1024 * 1024 // 5MB
     }
 });
 
-// Upload fields configuration
+// Define upload fields
 export const uploadFields = upload.fields([
-    { name: 'photo', maxCount: 1 },
-    { name: 'idScanFront', maxCount: 1 },
-    { name: 'idScanBack', maxCount: 1 }
+    { name: 'internationalPassport', maxCount: 1 },
+    { name: 'olevelResult', maxCount: 1 },
+    { name: 'olevelPin', maxCount: 1 },
+    { name: 'academicReferenceLetter', maxCount: 1 },
+    { name: 'resume', maxCount: 1 },
+    { name: 'universityDegreeCertificate', maxCount: 1 },
+    { name: 'universityTranscript', maxCount: 1 },
+    { name: 'sop', maxCount: 1 },
+    { name: 'researchDocs', maxCount: 1 },
+    { name: 'languageTestCert', maxCount: 1 }
 ]);
 
 // Error handling middleware
 export const handleUploadError = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
-        let errorMessage = 'File upload error';
-        
-        switch (err.code) {
-            case 'LIMIT_FILE_SIZE':
-                errorMessage = 'File is too large. Maximum size is 5MB';
-                break;
-            case 'LIMIT_UNEXPECTED_FILE':
-                errorMessage = 'Invalid file field';
-                break;
-            default:
-                errorMessage = err.message;
-        }
-
         return res.status(400).json({
             status: false,
-            message: errorMessage
+            message: `Multer error: ${err.message}`
         });
-    }
-    
-    if (err) {
+    } else if (err) {
         return res.status(400).json({
             status: false,
-            message: err.message
+            message: err.message || 'Error uploading file'
         });
     }
-    
     next();
 }; 

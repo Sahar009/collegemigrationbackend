@@ -1,10 +1,11 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+import { DataTypes } from 'sequelize';
+import sequelize from '../database/db.js';
 
 const Application = sequelize.define('Application', {
     applicationId: {
-        type: DataTypes.STRING,
-        primaryKey: true
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
     },
     memberId: {
         type: DataTypes.INTEGER,
@@ -15,28 +16,32 @@ const Application = sequelize.define('Application', {
         }
     },
     programId: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        references: {
-            model: 'programs',
-            key: 'programId'
-        }
+        type: DataTypes.STRING(50),
+        allowNull: true
     },
-    applicationStatus: {
-        type: DataTypes.ENUM('Pending', 'Processing', 'Approved', 'Rejected'),
-        defaultValue: 'Pending'
+    programCategory: {
+        type: DataTypes.ENUM('undergraduate', 'postgraduate', 'phd'),
+        allowNull: false
     },
-    applicationStatusDate: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+    applicationStage: {
+        type: DataTypes.INTEGER,
+        defaultValue: 1
     },
     paymentStatus: {
         type: DataTypes.ENUM('Unpaid', 'Paid'),
         defaultValue: 'Unpaid'
     },
-    paymentDate: {
-        type: DataTypes.DATE,
+    applicationStatus: {
+        type: DataTypes.STRING(20),
+        defaultValue: 'Pending'
+    },
+    intake: {
+        type: DataTypes.STRING(50),
         allowNull: true
+    },
+    applicationStatusDate: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     },
     applicationDate: {
         type: DataTypes.DATE,
@@ -44,7 +49,17 @@ const Application = sequelize.define('Application', {
     }
 }, {
     tableName: 'applications',
-    timestamps: false
+    timestamps: false,
+    indexes: [
+        {
+            name: 'idx_application_member',
+            fields: ['memberId']
+        },
+        {
+            name: 'idx_application_status',
+            fields: ['applicationStatus', 'paymentStatus']
+        }
+    ]
 });
 
-module.exports = Application;
+export default Application;
