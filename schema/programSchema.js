@@ -19,6 +19,10 @@ export const Program = sequelize.define('Program', {
         type: DataTypes.STRING(255),
         allowNull: false
     },
+    category: {
+        type: DataTypes.ENUM('undergraduate', 'postgraduate', 'phd'),
+        allowNull: false
+    },
     schoolName: {
         type: DataTypes.STRING(255),
         allowNull: false

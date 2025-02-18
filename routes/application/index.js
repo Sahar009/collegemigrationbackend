@@ -1,5 +1,5 @@
 import express from 'express';
-import { submitApplicationDocuments, getApplicationDocumentsByMember } from '../../controllers/applicationDocumentController.js';
+import { submitApplicationDocuments, getApplicationDocumentsByMember, updateApplicationDocument } from '../../controllers/applicationDocumentController.js';
 import { authenticateUser } from '../../middlewares/auth-middleware.js';
 import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
 import { checkEligibility, getAllApplications, getApplicationStatus, initiateApplication } from '../../controllers/applicationController.js';
@@ -17,6 +17,13 @@ applicationRouter.put('/documents',
 applicationRouter.get('/documents', 
     authenticateUser, 
     getApplicationDocumentsByMember
+);
+
+applicationRouter.put('/documents/:documentId', 
+    authenticateUser, 
+    uploadFields,
+    handleUploadError,
+    updateApplicationDocument
 );
 // Initiate new application
 applicationRouter.post('/initiate', 
@@ -36,7 +43,7 @@ applicationRouter.get('/all',
     getAllApplications
 );
 
-applicationRouter.get('/check-eligibility', 
+applicationRouter.post('/check-eligibility', 
     authenticateUser, 
     checkEligibility
 );

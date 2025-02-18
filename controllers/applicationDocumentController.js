@@ -1,4 +1,4 @@
-import { submitApplicationService, getApplicationDocuments } from '../service/applicationDocumentService.js';
+import { submitApplicationService, getApplicationDocuments, updateApplicationDocumentService } from '../service/applicationDocumentService.js';
 import { messageHandler } from '../utils/index.js';
 import { BAD_REQUEST } from '../constants/statusCode.js';
 
@@ -55,3 +55,11 @@ export const getApplicationDocumentsByMember = async (req, res) => {
         );
     }
 }; 
+
+export const updateApplicationDocument = async (req, res) => {
+    const documentId = req.params.documentId;
+    const updateData = req.body;
+    await updateApplicationDocumentService(documentId, updateData, (response) => {
+        res.status(response.statusCode).json(response);
+    });
+};

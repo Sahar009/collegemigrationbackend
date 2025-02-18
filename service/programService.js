@@ -17,6 +17,7 @@ export const createProgramService = async (data, callback) => {
             fee: data.fee,
             location: data.location,
             about: data.about || null,
+            category: data.category,
             features: data.features || null,
             schoolLogo: data.schoolLogo || null,
             programImage: data.programImage || null,
@@ -64,7 +65,9 @@ export const getAllProgramsService = async (query, callback) => {
             language, 
             location,
             limit = 10,
-            page = 1
+            page = 1,
+            category,
+            countries
         } = query;
 
         // Build where clause
@@ -84,6 +87,8 @@ export const getAllProgramsService = async (query, callback) => {
         if (degreeLevel) whereClause.degreeLevel = degreeLevel;
         if (language) whereClause.language = language;
         if (location) whereClause.location = location;
+        if (category) whereClause.category = category;
+        if (countries) whereClause.location = { [Op.like]: `%${countries}%` };
 
         // Calculate offset for pagination
         const offset = (page - 1) * limit;
@@ -91,7 +96,6 @@ export const getAllProgramsService = async (query, callback) => {
         // Get programs with pagination
         const { count, rows: programs } = await Program.findAndCountAll({
             where: whereClause,
-            order: [['programId', 'DESC']],
             limit: parseInt(limit),
             offset: parseInt(offset)
         });
@@ -112,15 +116,9 @@ export const getAllProgramsService = async (query, callback) => {
         // Cache the response
         await setCache(cacheKey, responseData);
 
-        if (!programs.length) {
-            return callback(
-                messageHandler("No programs found", true, SUCCESS, responseData)
-            );
-        }
-
         return callback(
             messageHandler(
-                "Programs retrieved successfully",
+                programs.length ? "Programs retrieved successfully" : "No programs found",
                 true,
                 SUCCESS,
                 responseData
@@ -254,7 +252,7 @@ export const filterProgramsService = async (filters, callback) => {
 
         const programs = await Program.findAll({
             where: whereClause,
-            order: [['createdAt', 'DESC']]
+        
         });
 
         return callback(

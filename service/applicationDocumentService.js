@@ -85,3 +85,42 @@ export const getApplicationDocuments = async (memberId, callback) => {
         ));
     }
 };
+
+export const updateApplicationDocumentService = async (documentId, updateData, callback) => {
+    try {
+        // Find and update the document
+        const document = await ApplicationDocument.findByPk(documentId);
+        
+        if (!document) {
+            return callback(messageHandler(
+                "Document not found",
+                false,
+                BAD_REQUEST
+            ));
+        }
+
+        // Update the document with the new data
+        await document.update({
+            ...updateData,
+            updatedAt: new Date()
+        });
+
+        // Fetch the updated document
+        const updatedDocument = await ApplicationDocument.findByPk(documentId);
+
+        return callback(messageHandler(
+            "Document updated successfully",
+            true,
+            SUCCESS,
+            updatedDocument
+        ));
+
+    } catch (error) {
+        console.error('Update document error:', error);
+        return callback(messageHandler(
+            error.message || "Error updating document",
+            false,
+            BAD_REQUEST
+        ));
+    }
+};

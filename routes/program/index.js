@@ -12,21 +12,19 @@ import {
 
 const programRouter = express.Router();
 
+// Move the search and filter routes BEFORE the /:id route
+// to prevent conflicts with parameter routing
+programRouter.get('/search', searchProgramsController);
+programRouter.get('/filter', filterProgramsController);
+
 // Basic CRUD routes
 programRouter.post('/', createProgramController);
-programRouter.get('/', getAllProgramsController);
+programRouter.get('/', getAllProgramsController);  // This should handle all query parameters
 programRouter.get('/:id', getProgramByIdController);
 programRouter.put('/:id', updateProgramController);
 programRouter.delete('/:id', deleteProgramController);
 
-// Additional functionality routes
-programRouter.get('/search', searchProgramsController);
-programRouter.get('/filter', filterProgramsController);
-
-
 // add program route
-programRouter.post(
-    '/create',
-    createProgram
-);
+programRouter.post('/create', createProgram);
+
 export default programRouter; 
