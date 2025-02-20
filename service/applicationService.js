@@ -26,7 +26,7 @@ const verifyMemberProfile = async (memberId) => {
     const requiredFields = [
         'othernames', 'phone', 'dob', 'idNumber', 'idType',
         'nationality', 'homeAddress', 'homeCity', 'homeZipCode',
-        'homeState', 'homeCountry', 'schengenVisaHolder', 'gender'
+        'homeState', 'homeCountry', 'gender'
     ];
 
     return requiredFields.every(field => member[field] !== null && member[field] !== undefined);
@@ -146,6 +146,7 @@ export const initiateApplicationService = async (memberId, programData, callback
 
         // Create new application
         const application = await Application.create({
+            
             memberId,
             programId: programData.programId,
             programCategory: programData.programCategory,
