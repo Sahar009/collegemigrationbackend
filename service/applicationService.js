@@ -115,14 +115,14 @@ const checkRequiredDocuments = async (memberId, programCategory) => {
 export const initiateApplicationService = async (memberId, programData, callback) => {
     try {
         // Check active applications limit
-        const canApply = await checkActiveApplicationsCount(memberId);
-        if (!canApply) {
-            return callback(messageHandler(
-                "Maximum active applications (3) reached", 
-                false, 
-                BAD_REQUEST
-            ));
-        }
+        // const canApply = await checkActiveApplicationsCount(memberId);
+        // if (!canApply) {
+        //     return callback(messageHandler(
+        //         "Maximum active applications (3) reached", 
+        //         false, 
+        //         BAD_REQUEST
+        //     ));
+        // }
 
         // Verify profile completion
         const isProfileComplete = await verifyMemberProfile(memberId);
@@ -260,11 +260,6 @@ export const getAllApplicationsService = async (memberId, callback) => {
     try {
         const applications = await Application.findAll({
             where: { memberId },
-            include: [{
-                model: ApplicationDocument,
-                as: 'applicationDocument',
-                attributes: { exclude: ['createdAt', 'updatedAt'] }
-            }],
             order: [['applicationDate', 'DESC']]  // Changed from createdAt to applicationDate
         });
 

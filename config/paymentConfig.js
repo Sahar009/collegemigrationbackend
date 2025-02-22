@@ -6,7 +6,7 @@ export const paymentConfig = {
         secretKey: process.env.PAYSTACK_SECRET_KEY,
         publicKey: process.env.PAYSTACK_PUBLIC_KEY,
         baseUrl: 'https://api.paystack.co',
-        channels: ['card', 'bank', 'ussd', 'qr', 'bank_transfer'],
+        channels: ['card', 'bank', 'ussd', 'qr', 'bank_transfer', 'mobile_money'],
         webhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET
     },
     stripe: {

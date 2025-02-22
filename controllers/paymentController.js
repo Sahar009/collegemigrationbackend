@@ -81,31 +81,35 @@ export const initiatePaymentController = async (req, res) => {
 
 export const verifyPaymentController = async (req, res) => {
     try {
-        const { reference, provider } = req.params;
+        const { reference } = req.query;
+        console.log('Payment verification request received for reference:', reference);
 
-        if (!reference || !provider) {
-            return res.status(BAD_REQUEST).json(
-                messageHandler(
-                    "Reference and provider are required",
-                    false,
-                    BAD_REQUEST
-                )
-            );
+        if (!reference) {
+            console.log('No reference provided in request');
+            return res.status(BAD_REQUEST).json({
+                message: "Payment reference is required",
+                success: false
+            });
         }
 
-        await verifyPayment(reference, provider, (response) => {
-            return res.status(response.statusCode).json(response);
+        const result = await verifyPayment(reference);
+        console.log('Verification result:', result);
+        
+        return res.status(result.statusCode).json({
+            message: result.message,
+            success: result.success,
+            data: result.data
         });
-
     } catch (error) {
-        console.error('Payment verification error:', error);
-        return res.status(BAD_REQUEST).json(
-            messageHandler(
-                error.message || "Error verifying payment",
-                false,
-                BAD_REQUEST
-            )
-        );
+        console.error('Payment verification controller error:', {
+            message: error.message,
+            stack: error.stack,
+            query: req.query
+        });
+        return res.status(BAD_REQUEST).json({
+            message: error.message || "Error verifying payment",
+            success: false
+        });
     }
 };
 

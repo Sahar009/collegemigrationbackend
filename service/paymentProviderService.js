@@ -67,18 +67,20 @@ class PaymentProviderService {
 
     async verifyPayment(reference) {
         try {
-            switch(this.provider) {
-                case 'paystack':
-                    return await this.axios.get(`/transaction/verify/${reference}`);
-                case 'stripe':
-                    return await this.axios.get(`/payment_intents/${reference}`);
-                case 'flutterwave':
-                    return await this.axios.get(`/transactions/${reference}/verify`);
-                default:
-                    throw new Error('Invalid payment provider');
-            }
+            console.log('Verifying payment with provider:', this.provider);
+            console.log('Reference:', reference);
+            
+            const response = await this.axios.get(`/transaction/verify/${reference}`);
+            console.log('Provider verification response:', response.data);
+            
+            return response;
         } catch (error) {
-            throw new Error(`Payment verification failed: ${error.message}`);
+            console.error('Provider verification error:', {
+                provider: this.provider,
+                reference: reference,
+                error: error.response?.data || error.message
+            });
+            throw error;
         }
     }
 
