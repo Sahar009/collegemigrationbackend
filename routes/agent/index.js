@@ -5,7 +5,8 @@ import {
     validateAgentRegistration, 
     validateLogin, 
     validatePasswordReset,
-    validateProfileUpdate 
+    validateProfileUpdate,
+    validateEmail
 } from '../../middleware/validationMiddleware.js';
 import { authenticateAgent } from '../../middleware/authMiddleware.js';
 import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
@@ -41,6 +42,8 @@ agentRouter.get(
     '/verify-email/:token',
     asyncHandler(agentAuthController.verifyEmail)
 );
+
+agentRouter.post('/resend-otp', validateEmail, asyncHandler(agentAuthController.resendOTP));
 
 // Protected routes
 agentRouter.use(authenticateAgent);

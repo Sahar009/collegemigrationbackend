@@ -186,4 +186,25 @@ export const validateProfileUpdate = [
         }
         next();
     }
+];
+
+export const validateEmail = [
+    body('email')
+        .trim()
+        .notEmpty()
+        .withMessage('Email is required')
+        .isEmail()
+        .withMessage('Invalid email format'),
+    
+    (req, res, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation Error',
+                errors: errors.array()
+            });
+        }
+        next();
+    }
 ]; 

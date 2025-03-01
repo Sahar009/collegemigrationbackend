@@ -89,4 +89,25 @@ export const refreshToken = async (req, res) => {
             message: error.message
         });
     }
+};
+
+export const resendOTP = async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(BAD_REQUEST).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+
+        const result = await agentAuthService.resendOTP(email);
+        return res.status(result.success ? SUCCESS : BAD_REQUEST).json(result);
+    } catch (error) {
+        return res.status(BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
 }; 

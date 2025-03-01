@@ -5,6 +5,7 @@ import { JWT_SECRET, JWT_EXPIRES_IN, MESSAGES } from '../config/constants.js';
 import { Agent } from '../schema/AgentSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { sendEmail } from '../utils/sendEmail.js';
+import { Op } from 'sequelize';
 
 // Agent Registration
 export const registerAgent = async (data) => {
@@ -55,6 +56,7 @@ export const registerAgent = async (data) => {
                 subject: 'Verify Your Agent Account',
                 template: 'agentVerification',
                 context: {
+                    
                     name: contactPerson,
                     verificationLink: `${process.env.BASE_URL}/verify-agent/${token}`
                 }
@@ -100,9 +102,9 @@ export const loginAgent = async (email, password) => {
             return messageHandler(MESSAGES.AUTH.INVALID_CREDENTIALS, false, 401);
         }
 
-        if (agent.status !== 'active') {
-            return messageHandler(MESSAGES.AUTH.ACCOUNT_INACTIVE, false, 403);
-        }
+        // if (agent.status !== 'active') {
+        //     return messageHandler(MESSAGES.AUTH.ACCOUNT_INACTIVE, false, 403);
+        // }
 
         const token = jwt.sign(
             { 
@@ -152,23 +154,35 @@ export const forgotPassword = async (email) => {
             resetCodeExpiry: otpExpiry
         });
 
-        // Send OTP email
+        // Send OTP email using resetPassword.ejs template
         await sendEmail({
             to: email,
-            subject: 'Password Reset OTP',
-            template: 'agentResetPassword',
+            subject: 'Password Reset Code - College Migration',
+            template: 'resetPassword',
             context: {
                 name: agent.contactPerson,
-                otp
+                resetCode: otp,
+                year: new Date().getFullYear(),
+                socialLinks: {
+                    Facebook: 'https://facebook.com/collegemigration',
+                    Twitter: 'https://twitter.com/collegemigration',
+                    LinkedIn: 'https://linkedin.com/company/collegemigration'
+                }
             }
         });
 
-        return {
-            success: true,
-            message: 'Password reset OTP sent to your email'
-        };
+        return messageHandler(
+            'Password reset code sent to your email',
+            true,
+            200
+        );
     } catch (error) {
-        throw error;
+        console.error('Forgot password error:', error);
+        return messageHandler(
+            error.message || 'Failed to process password reset request',
+            false,
+            400
+        );
     }
 };
 
@@ -276,5 +290,55 @@ export const refreshToken = async (agentId) => {
         };
     } catch (error) {
         throw error;
+    }
+};
+
+// Resend OTP
+export const resendOTP = async (email) => {
+    try {
+        const agent = await Agent.findOne({ where: { email } });
+        if (!agent) {
+            return messageHandler('Email not found', false, 404);
+        }
+
+        // Generate new OTP
+        const otp = generateOTP();
+        const otpExpiry = new Date(Date.now() + 30 * 60000); // 30 minutes
+
+        // Update agent with new OTP
+        await agent.update({
+            resetCode: otp,
+            resetCodeExpiry: otpExpiry
+        });
+
+        // Send new OTP email
+        await sendEmail({
+            to: email,
+            subject: 'New Password Reset Code - College Migration',
+            template: 'resetPassword',
+            context: {
+                name: agent.contactPerson,
+                resetCode: otp,
+                year: new Date().getFullYear(),
+                socialLinks: {
+                    Facebook: 'https://facebook.com/collegemigration',
+                    Twitter: 'https://twitter.com/collegemigration',
+                    LinkedIn: 'https://linkedin.com/company/collegemigration'
+                }
+            }
+        });
+
+        return messageHandler(
+            'New password reset code sent to your email',
+            true,
+            200
+        );
+    } catch (error) {
+        console.error('Resend OTP error:', error);
+        return messageHandler(
+            'Failed to resend password reset code',
+            false,
+            500
+        );
     }
 }; 

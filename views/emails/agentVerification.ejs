@@ -93,15 +93,27 @@
 
             <!-- Social Icons -->
             <div style="margin: 0 0 29px">
-                <% Object.entries(socialLinks).forEach(([platform, link]) => { %>
-                    <a href="<%= link %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
-                        <img
-                            src="https://your-social-icons-url.com/<%= platform.toLowerCase() %>.png"
-                            style="width: 24px; height: 24px;"
-                            alt="<%= platform %>"
-                        />
-                    </a>
-                <% }); %>
+                <a href="<%= socialLinks.Facebook %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                    <img
+                        src="https://cdn-icons-png.flaticon.com/256/20/20673.png"
+                        style="width: 24px; height: 24px;"
+                        alt="Facebook"
+                    />
+                </a>
+                <a href="<%= socialLinks.Twitter %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                    <img
+                        src="https://cdn-icons-png.freepik.com/256/3938/3938028.png?semt=ais_hybrid"
+                        style="width: 24px; height: 24px;"
+                        alt="Twitter"
+                    />
+                </a>
+                <a href="<%= socialLinks.LinkedIn %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                    <img
+                        src="https://cdn-icons-png.flaticon.com/512/174/174857.png"
+                        style="width: 24px; height: 24px;"
+                        alt="LinkedIn"
+                    />
+                </a>
             </div>
 
             <p style="color: #64748b; font-size: 12px; margin: 20px 0">
