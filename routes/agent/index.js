@@ -70,6 +70,11 @@ agentRouter.put(
     asyncHandler(agentProfileController.updateProfile)
 );
 
+agentRouter.get(
+    '/profile/validate',
+    asyncHandler(agentProfileController.validateProfileCompletionController)
+);
+
 // Error handling middleware
 agentRouter.use((err, req, res, next) => {
     console.error('Route Error:', err);

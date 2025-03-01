@@ -44,3 +44,15 @@ export const updateProfile = async (req, res) => {
         });
     }
 }; 
+
+export const validateProfileCompletionController = async (req, res) => {
+    try {
+        const result = await agentProfileService.validateProfileCompletion(req.user.id);
+        return res.status(SUCCESS).json(result);
+    } catch (error) {
+        return res.status(BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
+};

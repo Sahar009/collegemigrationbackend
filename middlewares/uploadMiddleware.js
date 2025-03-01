@@ -35,12 +35,13 @@ export const uploadFields = upload.fields([
     { name: 'sop', maxCount: 1 },
     { name: 'researchDocs', maxCount: 1 },
     { name: 'languageTestCert', maxCount: 1 },
-    { name: 'ageent-phoo', maxCount: 1 }
+    { name: 'photo', maxCount: 1 }
 ]);
 
 // Error handling middleware
 export const handleUploadError = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
+        console.log(err);
         return res.status(400).json({
             status: false,
             message: `Multer error: ${err.message}`
