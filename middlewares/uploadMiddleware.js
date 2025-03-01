@@ -34,7 +34,8 @@ export const uploadFields = upload.fields([
     { name: 'universityTranscript', maxCount: 1 },
     { name: 'sop', maxCount: 1 },
     { name: 'researchDocs', maxCount: 1 },
-    { name: 'languageTestCert', maxCount: 1 }
+    { name: 'languageTestCert', maxCount: 1 },
+    { name: 'ageent-phoo', maxCount: 1 }
 ]);
 
 // Error handling middleware

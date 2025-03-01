@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 
 
 // message handler
-export const messageHandler = (message, success, statusCode, data) => {
+export const messageHandler = (message, success = true, statusCode = 200, data = null) => {
   return { message, success, statusCode, data }
 }
 

@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
-import handlebars from 'handlebars';
-import fs from 'fs/promises'; // Using promises version for cleaner async code
+import ejs from 'ejs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -21,17 +20,28 @@ const transporter = nodemailer.createTransport({
 });
 
 // Read and compile template
-const readTemplate = async (templateName) => {
-    const templatePath = path.join(__dirname, '..', 'templates', `${templateName}.hbs`);
-    const template = await fs.readFile(templatePath, 'utf-8');
-    return handlebars.compile(template);
+const renderTemplate = async (templateName, data) => {
+    const templatePath = path.join(__dirname, '..', 'views', 'emails', `${templateName}.ejs`);
+    
+    // Add common data for all templates
+    const templateData = {
+        ...data,
+        year: new Date().getFullYear(),
+        companyName: 'College Migration',
+        socialLinks: {
+            Facebook: 'https://facebook.com/collegemigration',
+            Twitter: 'https://twitter.com/collegemigration',
+            LinkedIn: 'https://linkedin.com/company/collegemigration'
+        }
+    };
+
+    return await ejs.renderFile(templatePath, templateData);
 };
 
 export const sendEmail = async ({ to, subject, template, context }) => {
     try {
-        // Compile template
-        const compiledTemplate = await readTemplate(template);
-        const html = compiledTemplate(context);
+        // Render template
+        const html = await renderTemplate(template, context);
 
         // Send email
         const mailOptions = {

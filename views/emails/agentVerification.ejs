@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>College Migration - Password Reset</title>
+    <title>College Migration - Email Verification</title>
 </head>
 <body style="
     margin: 0;
     padding: 0;
-    background: #408e49;
+    background:  #408e49;
     font-family: Arial, sans-serif;
     text-align: center;
     padding: 10px;
@@ -32,14 +32,14 @@
 
         <!-- Main Image -->
         <img
-            src="https://res.cloudinary.com/ds5nnf5hi/image/upload/v1740831236/undraw_forgot_password_re_hxwm_qwk0aq.png"
+            src="https://res.cloudinary.com/ds5nnf5hi/image/upload/v1740831236/undraw_verified_m721_woojzs.png"
             style="width: 261px; margin: 0 auto 40px"
-            alt="Reset Password Illustration"
+            alt="Email Verification Illustration"
         />
 
         <!-- Content -->
         <h2 style="color: #1A2825; font-size: 24px; margin: 0 0 24px">
-            Password Reset Code
+            Verify Your Email Address
         </h2>
 
         <div style="text-align: left; margin-bottom: 24px">
@@ -53,26 +53,27 @@
                 margin: 0 0 16px;
                 line-height: 1.5;
             ">
-                We received a request to reset your password. Use the code below to complete the process:
+                Thank you for registering as an agent with College Migration. To complete your registration and access your account, please verify your email address by clicking the button below.
             </p>
 
-            <!-- Reset Code -->
-            <div style="
-                text-align: center;
-                background: #f1f5f9;
-                padding: 20px;
-                border-radius: 8px;
-                margin: 32px 0;
-                font-size: 24px;
-                letter-spacing: 4px;
-                font-weight: bold;
-                color: #408e49;
-            ">
-                <%= resetCode %>
+            <!-- Verification Button -->
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="<%= verificationLink %>" 
+                   style="
+                       background-color: #408e49;
+                       color: white;
+                       padding: 12px 32px;
+                       text-decoration: none;
+                       border-radius: 8px;
+                       font-weight: bold;
+                       display: inline-block;
+                   ">
+                    Verify Email Address
+                </a>
             </div>
 
             <p style="color: #000000; font-size: 14px; margin: 0 0 16px">
-                This code will expire in 30 minutes. If you didn't request this reset, please ignore this email.
+                If you didn't create an account with us, please ignore this email.
             </p>
 
             <p style="color: #000000; font-size: 14px; margin: 0 0 8px">

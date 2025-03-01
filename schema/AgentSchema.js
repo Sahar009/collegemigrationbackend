@@ -1,5 +1,5 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+import { DataTypes } from 'sequelize';
+import sequelize from "../database/db.js";
 
 const Agent = sequelize.define('Agent', {
     agentId: {
@@ -27,6 +27,10 @@ const Agent = sequelize.define('Agent', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     address: {
         type: DataTypes.TEXT,
         allowNull: true
@@ -37,13 +41,30 @@ const Agent = sequelize.define('Agent', {
     },
     commissionRate: {
         type: DataTypes.DECIMAL(5, 2),
-        allowNull: true
+        allowNull: true,
+        defaultValue: 0
     },
     status: {
         type: DataTypes.ENUM('active', 'pending', 'inactive'),
         defaultValue: 'pending'
     },
+    emailVerified: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    resetCode: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    resetCodeExpiry: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
     createdAt: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
+    },
+    updatedAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
     }
@@ -52,4 +73,4 @@ const Agent = sequelize.define('Agent', {
     timestamps: true
 });
 
-module.exports = Agent;
+export { Agent };

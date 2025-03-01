@@ -1,6 +1,8 @@
 import dotenv from 'dotenv'
 dotenv.config()
 import cors from 'cors'
+import { API_ROUTES } from './config/constants.js';
+
 import express from 'express'
 import { connectToDB } from './database/db.js'
 import errorMiddleware from './middlewares/errorMiddleware.js'

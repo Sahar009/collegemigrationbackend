@@ -260,7 +260,55 @@ export const getAllApplicationsService = async (memberId, callback) => {
     try {
         const applications = await Application.findAll({
             where: { memberId },
-            order: [['applicationDate', 'DESC']]  // Changed from createdAt to applicationDate
+            include: [
+                {
+                    model: ApplicationDocument,
+                    as: 'applicationDocument',
+                    attributes: ['documentId', 'documentType', 'documentPath', 'uploadDate', 'status']
+                },
+                {
+                    model: Member,
+                    as: 'member',
+                    attributes: [
+                        'memberId', 'firstname', 'lastname', 'othernames', 
+                        'email', 'phone', 'dob', 'gender', 'nationality',
+                        'homeAddress', 'homeCity', 'homeState', 'homeCountry',
+                        'homeZipCode', 'idType', 'idNumber'
+                    ]
+                },
+                {
+                    model: Program,
+                    as: 'program',
+                    attributes: [
+                        'programId', 
+                        'programName',
+                        'degree',
+                        'degreeLevel', 
+                        'schoolName',
+                        'language',
+                        'semesters',
+                        'fee',
+                        'location',
+                        'about',
+                        'features',
+                        'schoolLogo',
+                        'applicationFee',
+                        'applicationDeadline'
+                    ]
+                }
+            ],
+            attributes: [
+                'applicationId', 
+                'memberId', 
+                'programId',
+                'applicationStage',
+                'paymentStatus',
+                'applicationStatus',
+                'intake',
+                'applicationDate',
+                'applicationStatusDate'
+            ],
+            order: [['applicationDate', 'DESC']]  // Keep the DESC order
         });
 
         return callback(messageHandler(
