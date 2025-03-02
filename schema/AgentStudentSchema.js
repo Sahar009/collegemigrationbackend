@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize';
-import sequelize from '../config/database.js';
+import sequelize from "../database/db.js";
 import { Member } from './memberSchema.js';
 
 const AgentStudent = sequelize.define('AgentStudent', {
