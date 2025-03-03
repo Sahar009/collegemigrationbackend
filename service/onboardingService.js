@@ -425,6 +425,7 @@ export const updateProfileFieldsService = async (memberId, updates, callback) =>
 
 // Service to upload documents
 export const uploadDocumentsService = async (memberId, files, callback) => {
+    console.log(files)
     try {
         const member = await Member.findByPk(memberId);
         if (!member) {

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>College Migration - Welcome</title>
+</head>
+<body style="
+    margin: 0;
+    padding: 0;
+    background: #408e49;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 10px;
+">
+    <div style="
+        margin: 20px auto;
+        padding: 40px 20px;
+        max-width: 600px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 24px;
+    ">
+        <!-- Logo -->
+        <div style="width: 100%; margin: 0 auto 40px">
+            <img
+                src="https://res.cloudinary.com/ds5nnf5hi/image/upload/v1740830241/college_ilqfhe.png"
+                style="width: 128px; margin: 0 auto 40px"
+                alt="College Migration Logo"
+            />
+        </div>
+
+        <!-- Main Image -->
+        <img
+            src="https://res.cloudinary.com/ds5nnf5hi/image/upload/v1741040095/undraw_happy-announcement_23nf_yt4a0v.png"
+            style="width: 261px; margin: 0 auto 40px"
+            alt="Welcome Illustration"
+        />
+
+        <!-- Content -->
+        <h2 style="color: #1A2825; font-size: 24px; margin: 0 0 24px">
+            Welcome to College Migration!
+        </h2>
+
+        <div style="text-align: left; margin-bottom: 24px">
+            <p style="color: #000000; font-size: 14px; margin: 0 0 16px">
+                Dear <%= firstname %>,
+            </p>
+
+            <p style="
+                color: #000000;
+                font-size: 14px;
+                margin: 0 0 16px;
+                line-height: 1.5;
+            ">
+                We're thrilled to welcome you to College Migration! Your account has been successfully created. Here's what you can do next:
+            </p>
+
+            <!-- Steps List -->
+            <div style="
+                text-align: left;
+                background: #f1f5f9;
+                padding: 20px;
+                border-radius: 8px;
+                margin: 32px 0;
+                color: #408e49;
+            ">
+                <p style="margin: 0 0 8px; font-weight: bold;">Next Steps:</p>
+                <ul style="
+                    margin: 0;
+                    padding-left: 20px;
+                    color: #000000;
+                    font-size: 14px;
+                ">
+                    <li style="margin-bottom: 8px">Complete your profile</li>
+                    <li style="margin-bottom: 8px">Browse available programs</li>
+                    <li style="margin-bottom: 8px">Connect with our education consultants</li>
+                </ul>
+            </div>
+
+            <p style="color: #000000; font-size: 14px; margin: 0 0 16px">
+                If you need any assistance, our support team is here to help at support@collegemigration.com
+            </p>
+
+            <p style="color: #000000; font-size: 14px; margin: 0 0 8px">
+                Best Regards,
+            </p>
+
+            <p style="color: #000000; font-size: 14px; margin: 0">
+                College Migration Team
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="margin: 40px -20px 0; padding: 37px 20px; background: #f8fafc">
+            <p style="color: #000000; font-size: 14px; margin: 0 0 29px">
+                Join our growing community of international students
+            </p>
+
+            <!-- Social Icons -->
+            <div style="margin: 0 0 29px">
+                <a href="<%= socialLinks.Facebook %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                    <img
+                        src="https://cdn-icons-png.flaticon.com/256/20/20673.png"
+                        style="width: 24px; height: 24px;"
+                        alt="Facebook"
+                    />
+                </a>
+                <a href="<%= socialLinks.Twitter %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                    <img
+                        src="https://cdn-icons-png.freepik.com/256/3938/3938028.png?semt=ais_hybrid"
+                        style="width: 24px; height: 24px;"
+                        alt="Twitter"
+                    />
+                </a>
+                <a href="<%= socialLinks.LinkedIn %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                    <img
+                        src="https://cdn-icons-png.flaticon.com/512/174/174857.png"
+                        style="width: 24px; height: 24px;"
+                        alt="LinkedIn"
+                    />
+                </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 12px; margin: 20px 0">
+                &copy; <%= year %> College Migration. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html> 

@@ -60,7 +60,7 @@ export const updateOnboardingSection = (req, res) => {
 export const uploadDocuments = async (req, res) => {
     const memberId = req.user.id;
     const files = req.files;
-
+console.log(files)
     // Validate if files were provided
     if (!files || Object.keys(files).length === 0) {
         return res.status(400).json({

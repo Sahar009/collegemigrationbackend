@@ -43,7 +43,23 @@ export const registerService = async (data, callback) => {
             lastname,
             email,
             password: hashedPassword,
-            memberStatus: 'PENDING' // Changed to PENDING since onboarding is required
+            memberStatus: 'PENDING'
+        });
+
+        // Send welcome email with correct context variables
+        await sendEmail({
+            to: email,
+            subject: 'Welcome to College Migration',
+            template: 'welcome',
+            context: {
+                firstname: firstname, // Make sure this matches the variable in the EJS template
+                year: new Date().getFullYear(),
+                socialLinks: {
+                    Facebook: 'https://facebook.com/collegemigration',
+                    Twitter: 'https://twitter.com/collegemigration',
+                    LinkedIn: 'https://linkedin.com/company/collegemigration'
+                }
+            }
         });
 
         // Generate token
