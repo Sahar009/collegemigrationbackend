@@ -106,33 +106,24 @@ export const loginAgent = async (email, password) => {
         //     return messageHandler(MESSAGES.AUTH.ACCOUNT_INACTIVE, false, 403);
         // }
 
+        // Generate token with the exact same secret
         const token = jwt.sign(
-            { 
-                id: agent.agentId,
-                email: agent.email,
-                role: 'agent'
-            },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
+            { id: agent.agentId },
+            process.env.JWT_SECRET, // Make sure this matches your .env file
+            { expiresIn: '24h' }
         );
 
-        return messageHandler(
-            MESSAGES.AUTH.LOGIN_SUCCESS,
-            true,
-            200,
-            {
-                token,
-                agent: {
-                    id: agent.agentId,
-                    email: agent.email,
-                    companyName: agent.companyName,
-                    status: agent.status
-                }
-            }
-        );
+        return messageHandler('Login successful', true, 200, {
+            agent: {
+                agentId: agent.agentId,
+                email: agent.email,
+                status: agent.status
+            },
+            token
+        });
     } catch (error) {
         console.error('Login error:', error);
-        return messageHandler('Login failed. Please try again.', false, 500);
+        return messageHandler('Login failed', false, 500);
     }
 };
 

@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
 import { Agent } from '../schema/AgentSchema.js';
-import { JWT_SECRET } from '../config/constants.js';
 
 export const authenticateAgent = async (req, res, next) => {
     try {
@@ -13,43 +12,35 @@ export const authenticateAgent = async (req, res, next) => {
             });
         }
 
-        const token = authHeader.split(' ')[1];
-
         // Verify token
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Check if agent exists and is active
+        // Get agent from database
         const agent = await Agent.findOne({
             where: {
                 agentId: decoded.id,
                 status: 'active'
-            },
-            attributes: ['agentId', 'email', 'companyName', 'status']
+            }
         });
 
         if (!agent) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid token or inactive account'
+                message: 'Unauthorized access'
             });
         }
 
         // Add agent info to request
         req.user = {
-            id: agent.agentId,
+            agentId: agent.agentId,
             email: agent.email,
-            companyName: agent.companyName,
-            role: 'agent'
+            status: agent.status
         };
 
         next();
     } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({
-                success: false,
-                message: 'Token expired'
-            });
-        }
+        console.error('Authentication error:', error);
         return res.status(401).json({
             success: false,
             message: 'Invalid token'

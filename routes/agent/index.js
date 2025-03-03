@@ -60,6 +60,7 @@ agentRouter.post(
 
 agentRouter.get(
     '/profile',
+    authenticateAgent,
     asyncHandler(agentProfileController.getProfile)
 );
 
@@ -72,7 +73,8 @@ agentRouter.put(
 );
 
 agentRouter.get(
-    '/profile/validate',
+    '/profile/validate/:agentId',
+    authenticateAgent,
     asyncHandler(agentProfileController.validateProfileCompletionController)
 );
 

@@ -58,6 +58,14 @@ const AgentPersonalInfo = sequelize.define('AgentPersonalInfo', {
     photo: {
         type: DataTypes.STRING(255),
         allowNull: true
+    },
+    phone: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+    },
+    isCompleted: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, {
     tableName: 'agent_personal_information',

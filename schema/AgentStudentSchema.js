@@ -1,6 +1,7 @@
 import { DataTypes } from 'sequelize';
 import sequelize from "../database/db.js";
 import { Member } from './memberSchema.js';
+import { Agent } from './AgentSchema.js';
 
 const AgentStudent = sequelize.define('AgentStudent', {
     memberId: {
@@ -10,6 +11,14 @@ const AgentStudent = sequelize.define('AgentStudent', {
         references: {
             model: 'member_personal_information',
             key: 'memberId'
+        }
+    },
+    agentId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'agents',
+            key: 'agentId'
         }
     },
     firstname: {
@@ -107,5 +116,7 @@ const AgentStudent = sequelize.define('AgentStudent', {
 
 // Associations
 AgentStudent.belongsTo(Member, { foreignKey: 'memberId' });
+AgentStudent.belongsTo(Agent, { foreignKey: 'agentId' });
+Agent.hasMany(AgentStudent, { foreignKey: 'agentId' });
 
 export default AgentStudent; 
