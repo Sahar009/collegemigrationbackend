@@ -124,3 +124,66 @@ export const updateApplicationDocumentService = async (documentId, updateData, c
         ));
     }
 };
+
+export const uploadSingleDocumentService = async (memberId, documentType, file, callback) => {
+    try {
+        if (!file) {
+            return callback(messageHandler(
+                "No file provided", 
+                false, 
+                BAD_REQUEST
+            ));
+        }
+
+        // First try to find the existing document
+        let document = await ApplicationDocument.findOne({
+            where: {
+                memberId,
+                documentType
+            }
+        });
+
+        if (document) {
+            // Document exists, update it
+            document = await document.update({
+                documentPath: file.path,
+                status: 'pending',
+                uploadDate: new Date(),
+                updatedAt: new Date()
+            });
+
+            return callback(messageHandler(
+                `${documentType} updated successfully`,
+                true,
+                SUCCESS,
+                document
+            ));
+        } else {
+            // Document doesn't exist, create new one
+            document = await ApplicationDocument.create({
+                memberId,
+                documentType,
+                documentPath: file.path,
+                status: 'pending',
+                uploadDate: new Date(),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            return callback(messageHandler(
+                `${documentType} uploaded successfully`,
+                true,
+                SUCCESS,
+                document
+            ));
+        }
+
+    } catch (error) {
+        console.error('Document upload error:', error);
+        return callback(messageHandler(
+            error.message || "Error uploading document",
+            false,
+            BAD_REQUEST
+        ));
+    }
+};

@@ -23,7 +23,7 @@ const upload = multer({
     }
 });
 
-// Define upload fields
+// Keep existing uploadFields for other services
 export const uploadFields = upload.fields([
     { name: 'internationalPassport', maxCount: 1 },
     { name: 'olevelResult', maxCount: 1 },
@@ -40,13 +40,45 @@ export const uploadFields = upload.fields([
     { name: 'idScanBack', maxCount: 1 }
 ]);
 
+// Add single document upload
+export const uploadSingleDocument = upload.single('document');
+
+// Document type validation middleware
+export const validateDocumentType = (req, res, next) => {
+    const { documentType } = req.params;
+    const validDocumentTypes = [
+        'internationalPassport',
+        'olevelResult',
+        'olevelPin',
+        'academicReferenceLetter',
+        'resume',
+        'universityDegreeCertificate',
+        'universityTranscript',
+        'sop',
+        'researchDocs',
+        'languageTestCert',
+        'photo',
+        'idScanFront',
+        'idScanBack'
+    ];
+
+    if (!validDocumentTypes.includes(documentType)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid document type'
+        });
+    }
+
+    next();
+};
+
 // Error handling middleware
 export const handleUploadError = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
         console.log(err);
         return res.status(400).json({
             status: false,
-            message: `Multer error: ${err.message}`
+            message: `Upload error: ${err.message}`
         });
     } else if (err) {
         return res.status(400).json({

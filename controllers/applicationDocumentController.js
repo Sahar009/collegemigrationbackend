@@ -1,4 +1,4 @@
-import { submitApplicationService, getApplicationDocuments, updateApplicationDocumentService } from '../service/applicationDocumentService.js';
+import { submitApplicationService, getApplicationDocuments, updateApplicationDocumentService, uploadSingleDocumentService } from '../service/applicationDocumentService.js';
 import { messageHandler } from '../utils/index.js';
 import { BAD_REQUEST } from '../constants/statusCode.js';
 
@@ -57,9 +57,53 @@ export const getApplicationDocumentsByMember = async (req, res) => {
 }; 
 
 export const updateApplicationDocument = async (req, res) => {
-    const documentId = req.params.documentId;
-    const updateData = req.body;
-    await updateApplicationDocumentService(documentId, updateData, (response) => {
-        res.status(response.statusCode).json(response);
-    });
+    try {
+        const { documentId } = req.params;
+        const updateData = req.body;
+
+        // If a file was uploaded, add the URL to updateData
+        if (req.file) {
+            updateData.documentUrl = req.file.path;
+        }
+
+        await updateApplicationDocumentService(
+            documentId,
+            updateData,
+            (response) => {
+                return res.status(response.statusCode).json({
+                    success: response.success,
+                    message: response.message,
+                    data: response.data
+                });
+            }
+        );
+    } catch (error) {
+        console.error('Update document controller error:', error);
+        return res.status(BAD_REQUEST).json({
+            success: false,
+            message: error.message || 'Error updating document'
+        });
+    }
+};
+
+export const uploadSingleDocument = async (req, res) => {
+    try {
+        const memberId = req.user.id;
+        const { documentType } = req.params;
+        const file = req.file;
+
+        await uploadSingleDocumentService(
+            memberId,
+            documentType,
+            file,
+            (response) => {
+                res.status(response.statusCode).json(response);
+            }
+        );
+    } catch (error) {
+        console.error('Upload document error:', error);
+        res.status(BAD_REQUEST).json(
+            messageHandler(error.message || "Error uploading document", false, BAD_REQUEST)
+        );
+    }
 };

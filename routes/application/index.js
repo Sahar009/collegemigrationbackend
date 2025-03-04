@@ -1,7 +1,7 @@
 import express from 'express';
 import { submitApplicationDocuments, getApplicationDocumentsByMember, updateApplicationDocument } from '../../controllers/applicationDocumentController.js';
 import { authenticateUser } from '../../middlewares/auth-middleware.js';
-import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
+import { handleUploadError, uploadFields, validateDocumentType, uploadSingleDocument } from '../../middlewares/uploadMiddleware.js';
 import { checkEligibility, getAllApplications, getApplicationStatus, initiateApplication } from '../../controllers/applicationController.js';
 
 const applicationRouter = express.Router();
@@ -48,5 +48,14 @@ applicationRouter.post('/check-eligibility',
     checkEligibility
 );
 
+// Add new single document upload route
+applicationRouter.post(
+    '/documents/:documentType',
+    authenticateUser,
+    validateDocumentType,
+    uploadSingleDocument,
+    handleUploadError,
+    uploadSingleDocument
+);
 
 export default applicationRouter; 
