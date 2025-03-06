@@ -41,7 +41,7 @@ export const uploadFields = upload.fields([
 ]);
 
 // Add single document upload
-export const uploadSingleDocument = upload.single('document');
+export const uploadSingleDocument = upload.single('file');
 
 // Document type validation middleware
 export const validateDocumentType = (req, res, next) => {

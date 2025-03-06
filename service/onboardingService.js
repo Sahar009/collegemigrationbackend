@@ -28,6 +28,7 @@ const checkOnboardingCompletion = (member) => {
 // Update the updateMemberProfileService
 export const updateMemberProfileService = async (memberId, data, callback) => {
     try {
+        console.log(data)
         // Find member
         const member = await Member.findByPk(memberId);
         if (!member) {
@@ -452,6 +453,13 @@ export const uploadDocumentsService = async (memberId, files, callback) => {
 
         // Update member record
         await member.update(updates);
+        const isOnboardingComplete = checkOnboardingCompletion(member);
+           // Update member status if onboarding is complete
+           if (isOnboardingComplete && member.memberStatus === 'PENDING') {
+            await member.update({ memberStatus: 'ACTIVE' });
+            console.log(`Member ${memberId} status updated to ACTIVE after completing onboarding`);
+        }
+
 
         return callback(
             messageHandler("Documents uploaded successfully", true, SUCCESS, {

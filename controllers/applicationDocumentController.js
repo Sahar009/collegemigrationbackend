@@ -58,12 +58,18 @@ export const getApplicationDocumentsByMember = async (req, res) => {
 
 export const updateApplicationDocument = async (req, res) => {
     try {
-        const { documentId } = req.params;
-        const updateData = req.body;
+        const { documentType } = req.params;
+        const updateData = {
+            ...req.body,
+            documentType // Add documentType from params
+        };
 
-        // If a file was uploaded, add the URL to updateData
+        // Generate a unique documentId if not provided
+        const documentId = req.params.documentId || Date.now().toString();
+
+        // If a file was uploaded, add the path to updateData
         if (req.file) {
-            updateData.documentUrl = req.file.path;
+            updateData.documentPath = req.file.path; // Changed from documentUrl to documentPath
         }
 
         await updateApplicationDocumentService(

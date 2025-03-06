@@ -134,11 +134,26 @@ export const initiateApplicationService = async (memberId, programData, callback
             ));
         }
 
-        // Check required documents
+        // Check required documents with improved error handling
         const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
         if (!isComplete) {
+            // Format document names for better readability
+            const formattedDocs = missingDocs.map(doc => 
+                doc
+                    .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+                    .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+                    .trim()
+            );
+
             return callback(messageHandler(
-                `Missing required documents: ${missingDocs.join(', ')}. Please upload all required documents before applying.`,
+                {
+                    message: "Missing required documents",
+                    details: {
+                        missingDocuments: formattedDocs,
+                        programCategory: programData.programCategory,
+                        totalMissing: missingDocs.length
+                    }
+                },
                 false,
                 BAD_REQUEST
             ));
@@ -146,7 +161,6 @@ export const initiateApplicationService = async (memberId, programData, callback
 
         // Create new application
         const application = await Application.create({
-            
             memberId,
             programId: programData.programId,
             programCategory: programData.programCategory,

@@ -4,6 +4,8 @@ import { messageHandler } from '../utils/index.js';
 import { SUCCESS, BAD_REQUEST } from '../constants/statusCode.js';
 import PaymentProviderService from './paymentProviderService.js';
 import  Application  from '../schema/ApplicationSchema.js';
+import { Member } from '../schema/memberSchema.js';
+import { sendEmail } from '../utils/sendEmail.js';
 // Payment providers configuration
 const paymentProviders = {
     NGN: ['paystack'],
@@ -233,6 +235,39 @@ export const verifyPayment = async (reference) => {
                     { where: { applicationId: transaction.applicationId } }
                 );
                 console.log('Updated transaction and application status');
+
+                // Fetch member details for the email
+                const member = await Member.findByPk(transaction.memberId);
+                
+                // Send success email
+                const emailData = {
+                    name: member?.firstName || 'Valued Customer',
+                    paymentReference: reference,
+                    currency: transaction.currency,
+                    amount: transaction.amount,
+                    applicationId: transaction.applicationId,
+                    paymentMethod: transaction.paymentMethod,
+                    paymentDate: new Date().toLocaleDateString(),
+                    year: new Date().getFullYear()
+                };
+
+                console.log('Sending email with data:', emailData);
+
+                try {
+                    await sendEmail({
+                        template: 'paymentSuccess',
+                        email: transaction.metadata.email,
+                        subject: 'Payment Successful - College Migration',
+                        data: emailData
+                    });
+                } catch (error) {
+                    console.error('Email sending error details:', {
+                        error: error.message,
+                        emailData,
+                        memberData: member
+                    });
+                }
+
             } else {
                 console.log('No transaction found. Checking Paystack response data:', verificationResult.data);
                 
@@ -271,6 +306,38 @@ export const verifyPayment = async (reference) => {
                         { where: { applicationId: parseInt(applicationId) } }
                     );
                     console.log('Updated application payment status');
+
+                    // Fetch member details for the email
+                    const member = await Member.findByPk(parseInt(memberId));
+                    
+                    // Send success email
+                    const emailData = {
+                        name: member?.firstName || 'Valued Customer',
+                        paymentReference: reference,
+                        currency: paystackData.currency,
+                        amount: paystackData.amount / 100,
+                        applicationId: parseInt(applicationId),
+                        paymentMethod: 'paystack',
+                        paymentDate: new Date().toLocaleDateString(),
+                        year: new Date().getFullYear()
+                    };
+
+                    console.log('Sending email with data:', emailData);
+
+                    try {
+                        await sendEmail({
+                            template: 'paymentSuccess',
+                            email: paystackData.customer.email,
+                            subject: 'Payment Successful - College Migration',
+                            data: emailData
+                        });
+                    } catch (error) {
+                        console.error('Email sending error details:', {
+                            error: error.message,
+                            emailData,
+                            memberData: member
+                        });
+                    }
                 }
             }
         }

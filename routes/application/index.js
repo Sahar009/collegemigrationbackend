@@ -19,12 +19,12 @@ applicationRouter.get('/documents',
     getApplicationDocumentsByMember
 );
 
-applicationRouter.put('/documents/:documentId', 
-    authenticateUser, 
-    uploadFields,
-    handleUploadError,
-    updateApplicationDocument
-);
+// applicationRouter.put('/documents/:documentId', 
+//     authenticateUser, 
+//     uploadFields,
+//     handleUploadError,
+//     updateApplicationDocument
+// );
 // Initiate new application
 applicationRouter.post('/initiate', 
     authenticateUser, 
@@ -55,7 +55,7 @@ applicationRouter.post(
     validateDocumentType,
     uploadSingleDocument,
     handleUploadError,
-    uploadSingleDocument
+    updateApplicationDocument
 );
 
 export default applicationRouter; 

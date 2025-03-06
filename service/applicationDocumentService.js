@@ -88,14 +88,43 @@ export const getApplicationDocuments = async (memberId, callback) => {
 
 export const updateApplicationDocumentService = async (documentId, updateData, callback) => {
     try {
-        // Find and update the document
-        const document = await ApplicationDocument.findByPk(documentId);
+        // Find the document
+        let document = await ApplicationDocument.findByPk(documentId);
         
         if (!document) {
+            // Validate required fields
+            if (!updateData.memberId) {
+                return callback(messageHandler(
+                    "memberId is required",
+                    false,
+                    BAD_REQUEST
+                ));
+            }
+
+            if (!updateData.documentPath) {
+                return callback(messageHandler(
+                    "File upload is required",
+                    false,
+                    BAD_REQUEST
+                ));
+            }
+
+            // Create new document if it doesn't exist
+            document = await ApplicationDocument.create({
+                id: documentId,
+                memberId: updateData.memberId,
+                documentPath: updateData.documentPath,
+                documentType: updateData.documentType,
+                ...updateData,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
             return callback(messageHandler(
-                "Document not found",
-                false,
-                BAD_REQUEST
+                "Document uploaded successfully",
+                true,
+                SUCCESS,
+                document
             ));
         }
 
