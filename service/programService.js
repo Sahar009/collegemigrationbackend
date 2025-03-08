@@ -25,7 +25,7 @@ export const createProgramService = async (data, callback) => {
             applicationDeadline: data.applicationDeadline
         });
         
-        // Clear all program caches
+        // Clear all program caches when a new program is created
         await clearCache('programs:*');
 
         return callback(messageHandler(
@@ -45,19 +45,22 @@ export const createProgramService = async (data, callback) => {
     }
 };  
 
-// Get All Programs Service with search and filter
+// Get All Programs Service with search, filter and caching
 export const getAllProgramsService = async (query, callback) => {
     try {
         // Generate cache key based on query parameters
         const cacheKey = generateCacheKey(query);
-
+        
         // Try to get data from cache
         const cachedData = await getCache(cacheKey);
         if (cachedData) {
+            console.log(`Cache hit for key: ${cacheKey}`);
             return callback(
                 messageHandler("Programs retrieved from cache", true, SUCCESS, cachedData)
             );
         }
+        
+        console.log(`Cache miss for key: ${cacheKey}`);
 
         const { 
             search, 
@@ -113,8 +116,9 @@ export const getAllProgramsService = async (query, callback) => {
             }
         };
 
-        // Cache the response
-        await setCache(cacheKey, responseData);
+        // Cache the response (use environment variable for expiration)
+        const expiration = parseInt(process.env.REDIS_CACHE_EXPIRATION || 86400);
+        await setCache(cacheKey, responseData, expiration);
 
         return callback(
             messageHandler(
@@ -133,9 +137,19 @@ export const getAllProgramsService = async (query, callback) => {
     }
 };
 
-// Get Single Program Service
+// Get Single Program Service with caching
 export const getProgramByIdService = async (programId, callback) => {
     try {
+        // Try to get from cache first
+        const cacheKey = `program:${programId}`;
+        const cachedProgram = await getCache(cacheKey);
+        
+        if (cachedProgram) {
+            return callback(
+                messageHandler("Program retrieved from cache", true, SUCCESS, cachedProgram)
+            );
+        }
+
         const program = await Program.findByPk(programId);
 
         if (!program) {
@@ -143,6 +157,9 @@ export const getProgramByIdService = async (programId, callback) => {
                 messageHandler("Program not found", false, NOT_FOUND)
             );
         }
+
+        // Cache the program
+        await setCache(cacheKey, program);
 
         return callback(
             messageHandler("Program retrieved successfully", true, SUCCESS, program)
@@ -170,7 +187,8 @@ export const updateProgramService = async (programId, data, callback) => {
         // Update program
         await program.update(data);
         
-        // Clear all program caches
+        // Clear specific program cache and all programs cache
+        await clearCache(`program:${programId}`);
         await clearCache('programs:*');
 
         return callback(
@@ -199,7 +217,8 @@ export const deleteProgramService = async (programId, callback) => {
         // Delete program
         await program.destroy();
         
-        // Clear all program caches
+        // Clear specific program cache and all programs cache
+        await clearCache(`program:${programId}`);
         await clearCache('programs:*');
 
         return callback(
@@ -214,9 +233,20 @@ export const deleteProgramService = async (programId, callback) => {
     }
 };
 
-// Search Programs Service
+// Search Programs Service with caching
 export const searchProgramsService = async (query, callback) => {
     try {
+        // Generate cache key for search
+        const cacheKey = `programs:search:${query}`;
+        
+        // Try to get from cache
+        const cachedResults = await getCache(cacheKey);
+        if (cachedResults) {
+            return callback(
+                messageHandler("Search results retrieved from cache", true, SUCCESS, cachedResults)
+            );
+        }
+
         const programs = await Program.findAll({
             where: {
                 [Op.or]: [
@@ -227,6 +257,9 @@ export const searchProgramsService = async (query, callback) => {
                 ]
             }
         });
+
+        // Cache the search results
+        await setCache(cacheKey, programs);
 
         return callback(
             messageHandler("Search results retrieved successfully", true, SUCCESS, programs)
@@ -240,9 +273,21 @@ export const searchProgramsService = async (query, callback) => {
     }
 };
 
-// Filter Programs Service
+// Filter Programs Service with caching
 export const filterProgramsService = async (filters, callback) => {
     try {
+        // Generate cache key for filters
+        const filterKey = JSON.stringify(filters);
+        const cacheKey = `programs:filter:${filterKey}`;
+        
+        // Try to get from cache
+        const cachedResults = await getCache(cacheKey);
+        if (cachedResults) {
+            return callback(
+                messageHandler("Filtered programs retrieved from cache", true, SUCCESS, cachedResults)
+            );
+        }
+
         const whereClause = {};
         
         // Add filters to where clause
@@ -252,8 +297,10 @@ export const filterProgramsService = async (filters, callback) => {
 
         const programs = await Program.findAll({
             where: whereClause,
-        
         });
+
+        // Cache the filtered results
+        await setCache(cacheKey, programs);
 
         return callback(
             messageHandler("Filtered programs retrieved successfully", true, SUCCESS, programs)
