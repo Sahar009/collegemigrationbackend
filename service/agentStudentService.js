@@ -1,6 +1,7 @@
 import { Agent } from '../schema/AgentSchema.js';
 import AgentStudent from '../schema/AgentStudentSchema.js';
 import { messageHandler } from '../utils/index.js';
+import AgentStudentDocument from '../schema/AgentStudentDocumentSchema.js';
 
 // Create Agent Student
 export const createAgentStudent = async (agentId, data) => {
@@ -87,19 +88,72 @@ export const getAgentStudent = async (agentId, memberId) => {
         const student = await AgentStudent.findOne({
             where: {
                 memberId,
-                agentId // Ensure student belongs to agent
-            }
+                agentId
+            },
+            attributes: [
+                'memberId',
+                'agentId',
+                'firstname',
+                'lastname',
+                'othernames',
+                'email',
+                'phone',
+                'gender',
+                'dob',
+                'homeAddress',
+                'homeCity',
+                'homeZipCode',
+                'homeState',
+                'homeCountry',
+                'nationality',
+                'idType',
+                'idNumber',
+                'idScanFront',
+                'idScanBack',
+                'photo',
+                'schengenVisaHolder',
+                'memberStatus',
+                'regDate'
+            ],
+            include: [
+                {
+                    model: AgentStudentDocument,
+                    as: 'documents',
+                    attributes: [
+                        'documentId',
+                        'documentType',
+                        'documentPath',
+                        'status',
+                        'uploadDate'
+                    ]
+                },
+                {
+                    model: Agent,
+                    attributes: [
+                        'agentId',
+                        'companyName',
+                        'contactPerson',
+                        'email'
+                    ]
+                }
+            ]
         });
-        
+
         if (!student) {
             return messageHandler('Student not found', false, 404);
         }
+
+        const response = {
+            studentInfo: student,
+            agentInfo: student.Agent,
+            documents: student.documents || []
+        };
 
         return messageHandler(
             'Student retrieved successfully',
             true,
             200,
-            student
+            response
         );
     } catch (error) {
         console.error('Get student error:', error);
@@ -183,4 +237,10 @@ export const deleteAgentStudent = async (agentId, memberId) => {
             500
         );
     }
-}; 
+};
+
+// Add association to AgentStudent model if not already added
+AgentStudent.hasMany(AgentStudentDocument, {
+    foreignKey: 'memberId',
+    sourceKey: 'memberId'
+}); 

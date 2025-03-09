@@ -111,3 +111,29 @@ export const resendOTP = async (req, res) => {
         });
     }
 }; 
+
+export const deleteAccount = async (req, res) => {
+    try {
+        const { password } = req.body;
+        const result = await agentAuthService.deleteAccount(req.user.id, password);
+        return res.status(SUCCESS).json(result);
+    } catch (error) {
+        return res.status(BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const updateProfile = async (req, res) => {
+    try {
+        const profileData = req.body;
+        const result = await agentAuthService.updateProfile(req.user.id, profileData);
+        return res.status(SUCCESS).json(result);
+    } catch (error) {
+        return res.status(BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
+};

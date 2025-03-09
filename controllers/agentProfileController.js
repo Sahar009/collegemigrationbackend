@@ -4,29 +4,29 @@ import { SUCCESS, BAD_REQUEST } from '../constants/statusCode.js';
 
 export const completeProfile = async (req, res) => {
     try {
-        // Log the incoming request data
-        console.log('Complete Profile Request - User:', req.user);
-        console.log('Complete Profile Request - Body:', req.body);
-        console.log('Complete Profile Request - File:', req.file);
-
         const agentId = req.user.id || req.user.agentId || req.body.agentId;
-
-        if (!agentId) {
-            throw new Error('Agent ID not found in request');
+        const profileData = req.body;
+        
+        // Handle photo upload if provided
+        if (req.files && req.files.photo && req.files.photo[0]) {
+            const photoFile = req.files.photo[0];
+            console.log('Processing photo file:', photoFile.originalname);
+            // Assuming the file path is already set by multer/cloudinary middleware
+            profileData.photo = photoFile.path;
+        } else {
+            console.log('No photo file provided in the request');
         }
 
-        const result = await agentProfileService.completeAgentProfile(
-            agentId,
-            req.body,
-            req.file
-        );
+        // Call the service with the updated profile data
+        await agentProfileService.completeAgentProfile(agentId, profileData, (result) => {
+            return res.status(result.success ? 200 : 400).json(result);
+        });
         
-        return res.status(SUCCESS).json(result);
     } catch (error) {
-        console.error('Complete Profile Controller Error:', error);
-        return res.status(BAD_REQUEST).json({
+        console.error('Complete profile controller error:', error);
+        return res.status(400).json({
             success: false,
-            message: error.message
+            message: error.message || 'Error completing profile'
         });
     }
 };

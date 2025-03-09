@@ -333,3 +333,65 @@ export const resendOTP = async (email) => {
         );
     }
 }; 
+
+export const deleteAccount = async (agentId, password) => {
+    try {
+        const agent = await Agent.findByPk(agentId);
+        if (!agent) {
+            throw new Error('Agent not found');
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, agent.password);
+        if (!isPasswordValid) {
+            throw new Error('Invalid password');
+        }
+
+        await agent.destroy();
+
+        return {
+            success: true,
+            message: 'Account deleted successfully'
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const updateProfile = async (agentId, profileData) => {
+    try {
+        const agent = await Agent.findByPk(agentId);
+        if (!agent) {
+            throw new Error('Agent not found');
+        }
+
+        // Update only allowed fields
+        const allowedFields = [
+            'companyName',
+            'contactPerson',
+            'email',
+            'phone',
+            'homeAddress',
+            'homeCity',
+            'homeState',
+            'homeZipCode',
+            'homeCountry'
+        ];
+
+        const filteredData = Object.keys(profileData)
+            .filter(key => allowedFields.includes(key))
+            .reduce((obj, key) => {
+                obj[key] = profileData[key];
+                return obj;
+            }, {});
+
+        await agent.update(filteredData);
+
+        return {
+            success: true,
+            message: 'Profile updated successfully',
+            data: agent
+        };
+    } catch (error) {
+        throw error;
+    }
+};

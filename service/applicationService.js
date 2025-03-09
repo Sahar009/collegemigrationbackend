@@ -134,14 +134,12 @@ export const initiateApplicationService = async (memberId, programData, callback
             ));
         }
 
-        // Check required documents with improved error handling
         const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
         if (!isComplete) {
-            // Format document names for better readability
             const formattedDocs = missingDocs.map(doc => 
                 doc
-                    .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-                    .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+                    .replace(/([A-Z])/g, ' $1') 
+                    .replace(/^./, str => str.toUpperCase()) 
                     .trim()
             );
 

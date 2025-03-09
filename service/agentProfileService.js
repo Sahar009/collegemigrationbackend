@@ -2,12 +2,15 @@ import { Agent } from '../schema/AgentSchema.js';
 import { AgentPersonalInfo } from '../schema/AgentPersonalInfoSchema.js';
 import { MESSAGES } from '../config/constants.js';
 
-export const completeAgentProfile = async (agentId, profileData) => {
+export const completeAgentProfile = async (agentId, profileData, callback) => {
     try {
         // Check if agent exists
         const agent = await Agent.findByPk(agentId);
         if (!agent) {
-            throw new Error('Agent not found');
+            return callback({
+                success: false,
+                message: 'Agent not found'
+            });
         }
 
         // Create or update personal information
@@ -34,7 +37,7 @@ export const completeAgentProfile = async (agentId, profileData) => {
             }]
         });
 
-        return {
+        return callback({
             success: true,
             message: validationResult.isCompleted 
                 ? 'Profile completed successfully' 
@@ -43,10 +46,13 @@ export const completeAgentProfile = async (agentId, profileData) => {
             completionPercentage: validationResult.completionPercentage,
             missingFields: validationResult.missingFields,
             data: updatedProfile
-        };
+        });
     } catch (error) {
         console.error('Complete profile error:', error);
-        throw error;
+        return callback({
+            success: false,
+            message: error.message || 'Error completing profile'
+        });
     }
 };
 

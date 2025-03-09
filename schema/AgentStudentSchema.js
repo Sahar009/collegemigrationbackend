@@ -1,17 +1,14 @@
 import { DataTypes } from 'sequelize';
 import sequelize from "../database/db.js";
-import { Member } from './memberSchema.js';
 import { Agent } from './AgentSchema.js';
+import AgentStudentDocument  from './AgentStudentDocumentSchema.js';
 
 const AgentStudent = sequelize.define('AgentStudent', {
     memberId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-        references: {
-            model: 'member_personal_information',
-            key: 'memberId'
-        }
+        allowNull: false
     },
     agentId: {
         type: DataTypes.INTEGER,
@@ -111,12 +108,24 @@ const AgentStudent = sequelize.define('AgentStudent', {
     }
 }, {
     tableName: 'agent_students',
-    timestamps: false
+    timestamps: false,
+    indexes: [
+        {
+            unique: true,
+            fields: ['email']
+        }
+    ]
 });
 
 // Associations
-AgentStudent.belongsTo(Member, { foreignKey: 'memberId' });
 AgentStudent.belongsTo(Agent, { foreignKey: 'agentId' });
 Agent.hasMany(AgentStudent, { foreignKey: 'agentId' });
+
+// Define the association in AgentStudent model
+AgentStudent.hasMany(AgentStudentDocument, {
+    foreignKey: 'memberId',
+    sourceKey: 'memberId',
+    as: 'AgentStudentDocuments'
+});
 
 export default AgentStudent; 

@@ -1,19 +1,19 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../database/db.js';
 
-export const ApplicationDocument = sequelize.define('ApplicationDocument', {
+const AgentStudentDocument = sequelize.define('AgentStudentDocument', {
     documentId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
     },
+    memberId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
     agentId: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'member_agents',
-            key: 'agentId'
-        }
+        allowNull: false
     },
     documentType: {
         type: DataTypes.STRING,
@@ -23,17 +23,17 @@ export const ApplicationDocument = sequelize.define('ApplicationDocument', {
         type: DataTypes.STRING,
         allowNull: false
     },
-    uploadDate: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    },
     status: {
         type: DataTypes.ENUM('pending', 'approved', 'rejected'),
         defaultValue: 'pending'
+    },
+    uploadDate: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     }
 }, {
-    tableName: 'application_documents',
+    tableName: 'agent_student_documents',
     timestamps: true
 });
 
-export default ApplicationDocument; 
+export default AgentStudentDocument; 

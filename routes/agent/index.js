@@ -46,6 +46,11 @@ agentRouter.get(
 
 agentRouter.post('/resend-otp', validateEmail, asyncHandler(agentAuthController.resendOTP));
 
+agentRouter.post('/change-password', authenticateAgent, asyncHandler(agentAuthController.changePassword));
+
+agentRouter.delete('/delete-account', authenticateAgent, asyncHandler(agentAuthController.deleteAccount));
+
+agentRouter.put('/profile', authenticateAgent, asyncHandler(agentAuthController.updateProfile));
 // Protected routes
 agentRouter.use(authenticateAgent);
 
