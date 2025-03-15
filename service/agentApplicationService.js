@@ -5,16 +5,15 @@ import { Program } from '../schema/programSchema.js';
 import { Agent } from '../schema/AgentSchema.js';
 import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
 import AgentStudentDocument from '../schema/AgentStudentDocumentSchema.js';
+import AgentTransaction from '../schema/AgentTransactionSchema.js';
 
 // Create Application for Agent Student
 export const createAgentApplicationService = async (agentId, data, callback) => {
     try {
-        const { memberId, programId } = data;
-
         // Check if student exists and belongs to agent
         const student = await AgentStudent.findOne({
             where: { 
-                memberId,
+                memberId: data.memberId,
                 agentId
             }
         });
@@ -28,7 +27,7 @@ export const createAgentApplicationService = async (agentId, data, callback) => 
         }
 
         // Check if program exists
-        const program = await Program.findByPk(programId);
+        const program = await Program.findByPk(data.programId);
         if (!program) {
             return callback(messageHandler(
                 "Program not found",
@@ -37,15 +36,15 @@ export const createAgentApplicationService = async (agentId, data, callback) => 
             ));
         }
 
-        // Create application
+        // Create application with proper ENUM values
         const application = await AgentApplication.create({
-            memberId,
-            programId,
             agentId,
-            applicationStage: 'documents',
-            paymentStatus: 'pending',
-            applicationStatus: 'pending',
-            intake: data.intake || 'upcoming',
+            memberId: data.memberId,
+            programId: data.programId,
+            applicationStage: 'documents',  // Using ENUM value
+            paymentStatus: 'pending',       // Using ENUM value
+            applicationStatus: 'pending',    // Using ENUM value
+            intake: data.intake,
             applicationDate: new Date()
         });
 
@@ -117,9 +116,23 @@ export const getAgentApplicationService = async (agentId, applicationId, callbac
 };
 
 // Get All Applications for Agent
-export const getAllAgentApplicationsService = async (agentId, callback) => {
+export const getAllAgentApplicationsService = async (agentId, query) => {
     try {
-        const applications = await AgentApplication.findAll({
+        // Set default values for pagination
+        const page = parseInt(query.page) || 1;
+        const limit = parseInt(query.limit) || 10;
+        
+        if (page < 1 || limit < 1) {
+            return messageHandler(
+                "Invalid pagination parameters",
+                false,
+                400
+            );
+        }
+
+        const offset = (page - 1) * limit;
+        
+        const { count, rows: applications } = await AgentApplication.findAndCountAll({
             where: { agentId },
             include: [
                 {
@@ -137,25 +150,44 @@ export const getAllAgentApplicationsService = async (agentId, callback) => {
                         'programId', 'programName', 'degree',
                         'schoolName', 'fee', 'applicationFee'
                     ]
+                },
+                {
+                    model: AgentTransaction,
+                    as: 'transactions',
+                    attributes: ['transactionId', 'amount', 'currency', 'status', 'paymentReference'],
+                    limit: 1,
+                    order: [['createdAt', 'DESC']]
                 }
             ],
-            order: [['applicationDate', 'DESC']]
+            order: [['createdAt', 'DESC']],
+            limit,
+            offset
         });
 
-        return callback(messageHandler(
+        return messageHandler(
             "Applications retrieved successfully",
             true,
-            SUCCESS,
-            applications
-        ));
+            200,
+            {
+                data: applications,
+                pagination: {
+                    totalItems: count,
+                    totalPages: Math.ceil(count / limit),
+                    currentPage: page,
+                    pageSize: limit,
+                    hasNextPage: page * limit < count,
+                    hasPreviousPage: page > 1
+                }
+            }
+        );
 
     } catch (error) {
         console.error('Get all applications error:', error);
-        return callback(messageHandler(
+        return messageHandler(
             "Error retrieving applications",
             false,
-            BAD_REQUEST
-        ));
+            500
+        );
     }
 };
 

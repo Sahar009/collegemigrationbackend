@@ -35,20 +35,20 @@ const AgentApplication = sequelize.define('AgentApplication', {
         }
     },
     applicationStage: {
-        type: DataTypes.INTEGER,
-        defaultValue: 1
+        type: DataTypes.ENUM('documents', 'review', 'interview', 'decision', 'completed'),
+        defaultValue: 'documents'
     },
     paymentStatus: {
-        type: DataTypes.ENUM('Unpaid', 'Paid'),
-        defaultValue: 'Unpaid'
+        type: DataTypes.ENUM('pending', 'paid', 'refunded'),
+        defaultValue: 'pending'
     },
     applicationStatus: {
-        type: DataTypes.STRING(20),
-        defaultValue: 'Pending'
+        type: DataTypes.ENUM('pending', 'approved', 'rejected', 'cancelled'),
+        defaultValue: 'pending'
     },
     intake: {
-        type: DataTypes.STRING(50),
-        allowNull: true
+        type: DataTypes.STRING,
+        allowNull: false
     },
     applicationDate: {
         type: DataTypes.DATE,
@@ -56,7 +56,7 @@ const AgentApplication = sequelize.define('AgentApplication', {
     }
 }, {
     tableName: 'agent_applications',
-    timestamps: false
+    timestamps: true
 });
 
 // Associations

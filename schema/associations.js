@@ -6,6 +6,7 @@ import { Agent } from './AgentSchema.js';
 import AgentStudent from './AgentStudentSchema.js';
 import AgentStudentDocument from './AgentStudentDocumentSchema.js';
 import AgentApplication from './AgentApplicationSchema.js';
+import AgentTransaction from './AgentTransactionSchema.js';
 
 // Define all associations
 export const setupAssociations = () => {
@@ -95,6 +96,17 @@ export const setupAssociations = () => {
     AgentApplication.belongsTo(Program, { 
         foreignKey: 'programId',
         as: 'program'
+    });
+
+    // Agent Transaction associations
+    AgentTransaction.belongsTo(AgentApplication, {
+        foreignKey: 'applicationId',
+        as: 'application'
+    });
+
+    AgentApplication.hasMany(AgentTransaction, {
+        foreignKey: 'applicationId',
+        as: 'transactions'
     });
 };
 

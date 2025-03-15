@@ -51,8 +51,31 @@ class PaymentProviderService {
     }
 
     async initializePaystackPayment(paymentData) {
-        const response = await this.axios.post('/transaction/initialize', paymentData);
-        return response.data;
+        try {
+            console.log('Initializing Paystack payment with:', paymentData);
+            
+            const response = await axios.post(
+                'https://api.paystack.co/transaction/initialize',
+                paymentData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            console.log('Paystack response:', response.data);
+
+            if (!response.data.status || !response.data.data.authorization_url) {
+                throw new Error('Invalid response from Paystack');
+            }
+
+            return response.data;
+        } catch (error) {
+            console.error('Paystack error:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.message || 'Payment initialization failed');
+        }
     }
 
     async initializeStripePayment(paymentData) {

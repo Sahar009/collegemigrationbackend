@@ -83,20 +83,26 @@ export const getAgentApplication = async (req, res) => {
 export const getAllAgentApplications = async (req, res) => {
     try {
         const agentId = req.agent.id;
+        
+        if (!agentId) {
+            return res.status(400).json(
+                messageHandler(
+                    "Agent ID is required",
+                    false,
+                    400
+                )
+            );
+        }
 
-        await getAllAgentApplicationsService(
-            agentId,
-            (response) => {
-                res.status(response.statusCode).json(response);
-            }
-        );
+        const result = await getAllAgentApplicationsService(agentId, req.query);
+        return res.status(result.statusCode).json(result);
     } catch (error) {
-        console.error('Get all applications controller error:', error);
-        res.status(BAD_REQUEST).json(
+        console.error('Controller error:', error);
+        return res.status(500).json(
             messageHandler(
-                "Error retrieving applications",
+                "Internal server error",
                 false,
-                BAD_REQUEST
+                500
             )
         );
     }

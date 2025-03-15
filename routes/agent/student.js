@@ -45,6 +45,8 @@ studentRouter.post('/documents/upload', validateDocumentType,uploadSingleDocumen
 
 // Application routes
 studentRouter.post('/application',authenticateAgent, asyncHandler(createAgentApplication));
+studentRouter.get('/application', authenticateAgent,  asyncHandler(getAgentApplication));
+
 studentRouter.get('/application/:memberId', authenticateAgent,  asyncHandler(getAgentApplication));
 studentRouter.put('/application/:memberId', authenticateAgent,  asyncHandler(updateAgentApplication));
 

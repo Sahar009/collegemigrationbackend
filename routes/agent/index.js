@@ -12,6 +12,8 @@ import { authenticateAgent } from '../../middleware/authMiddleware.js';
 import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import studentRouter from './student.js';
+import applicationRouter from './application.js';
+import paymentRouter from './payment.js';
 
 const agentRouter = express.Router();
 
@@ -83,8 +85,10 @@ agentRouter.get(
     asyncHandler(agentProfileController.validateProfileCompletionController)
 );
 
-// Add this to your existing agent router
+
 agentRouter.use('/students', studentRouter);
+agentRouter.use('/applications', applicationRouter);
+agentRouter.use('/payments', paymentRouter);
 
 // Error handling middleware
 agentRouter.use((err, req, res, next) => {
