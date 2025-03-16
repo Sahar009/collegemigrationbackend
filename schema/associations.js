@@ -7,6 +7,7 @@ import AgentStudent from './AgentStudentSchema.js';
 import AgentStudentDocument from './AgentStudentDocumentSchema.js';
 import AgentApplication from './AgentApplicationSchema.js';
 import AgentTransaction from './AgentTransactionSchema.js';
+import Referral from './ReferralSchema.js';
 
 // Define all associations
 export const setupAssociations = () => {
@@ -108,7 +109,54 @@ export const setupAssociations = () => {
         foreignKey: 'applicationId',
         as: 'transactions'
     });
+
+    // Member - Referral associations (updated with unique aliases)
+    Member.hasMany(Referral, {
+        foreignKey: 'memberId',
+        as: 'memberReferrals'  // Changed from 'referrals' to 'memberReferrals'
+    });
+
+    // Agent - Referral associations
+    Agent.hasMany(Referral, {
+        foreignKey: 'referrerId',
+        as: 'agentReferrals',  // Changed from 'referrals' to 'agentReferrals'
+        scope: {
+            referrerType: 'Agent'
+        }
+    });
+
+    // Referral associations
+    Referral.belongsTo(Member, {
+        foreignKey: 'memberId',
+        targetKey: 'memberId',
+        as: 'referredMember'  // Added meaningful alias
+    });
+
+    Referral.belongsTo(Agent, {
+        foreignKey: 'referrerId',
+        targetKey: 'agentId',
+        as: 'referringAgent',  // Added meaningful alias
+        scope: {
+            referrerType: 'Agent'
+        }
+    });
+
+    Referral.belongsTo(Member, {
+        foreignKey: 'referrerId',
+        targetKey: 'memberId',
+        as: 'referringMember',  // Added meaningful alias
+        scope: {
+            referrerType: 'Member'
+        }
+    });
 };
 
 // Make sure we're exporting the function properly
-export default setupAssociations; 
+export default setupAssociations;
+
+// Export models with associations
+export {
+    Member,
+    Referral,
+    Agent
+}; 

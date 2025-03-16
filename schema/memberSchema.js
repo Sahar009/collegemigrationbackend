@@ -1,5 +1,6 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../database/db.js";
+import Referral from "./ReferralSchema.js";
 
 export const Member = sequelize.define('Member', {
     memberId: {
@@ -109,6 +110,11 @@ export const Member = sequelize.define('Member', {
     resetCodeExpiry: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    referralCode: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        unique: true
     }
 }, {
     timestamps: true,
@@ -129,8 +135,18 @@ export const Member = sequelize.define('Member', {
         {
             name: 'idx_member_location',
             fields: ['homeCountry', 'homeState']
+        },
+        {
+            name: 'idx_member_referral',
+            fields: ['referralCode']
         }
     ]
+});
+
+// Add associations
+Member.hasMany(Referral, {
+    foreignKey: 'memberId',
+    as: 'referrals'
 });
 
 export default Member; 

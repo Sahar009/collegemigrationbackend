@@ -11,6 +11,12 @@ import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth } from '../config/firebaseConfig.js';
 import admin from '../config/firebaseAdmin.js';
 import { sendEmail } from '../utils/sendEmail.js';
+import { validateReference } from '../utils/reference.js';
+import sequelize from '../database/db.js';
+import Referral from '../schema/ReferralSchema.js';
+import { generateReference } from '../utils/reference.js';
+import { MESSAGES } from '../config/constants.js';
+import {Agent} from '../schema/AgentSchema.js';
 
 // Generate random 4-digit code
 const generateResetCode = () => {
@@ -18,41 +24,79 @@ const generateResetCode = () => {
 };
 
 export const registerService = async (data, callback) => {
+    const t = await sequelize.transaction();
+    
     try {
         const {
             firstname,
             lastname,
             email,
-            password
+            password,
+            ref,        // Referral code
+            refId,      // Referrer ID
+            refType     // Referrer type
         } = data;
 
         // Check if email exists
-        const existingMember = await Member.findOne({ where: { email } });
+        const existingMember = await Member.findOne({ 
+            where: { email },
+            transaction: t 
+        });
+
         if (existingMember) {
+            await t.rollback();
             return callback(
                 messageHandler("Email already exists", false, BAD_REQUEST)
             );
         }
 
-        // Hash password
-        const hashedPassword = await hashPassword(password);
-
         // Create new member
+        const hashedPassword = await hashPassword(password);
         const newMember = await Member.create({
             firstname,
             lastname,
             email,
             password: hashedPassword,
             memberStatus: 'PENDING'
-        });
+        }, { transaction: t });
 
-        // Send welcome email with correct context variables
+        // Handle referral if provided
+        if (ref && refId && refType) {
+            // Verify referrer exists
+            const referrerModel = refType === 'Agent' ? Agent : Member;
+            const referrer = await referrerModel.findOne({
+                where: { 
+                    [refType === 'Agent' ? 'agentId' : 'memberId']: refId,
+                    referralCode: ref
+                },
+                transaction: t
+            });
+
+            if (!referrer) {
+                await t.rollback();
+                return callback(
+                    messageHandler("Invalid referral code", false, BAD_REQUEST)
+                );
+            }
+
+            // Create referral record
+            await Referral.create({
+                referralCode: ref,
+                referrerId: refId,
+                referrerType: refType,
+                memberId: newMember.memberId,
+                status: 'unpaid',
+                statusDate: new Date()
+            }, { transaction: t });
+        }
+
+        // Send welcome email
         await sendEmail({
             to: email,
             subject: 'Welcome to College Migration',
             template: 'welcome',
             context: {
-                firstname: firstname, // Make sure this matches the variable in the EJS template
+                firstname,
                 year: new Date().getFullYear(),
                 socialLinks: {
                     Facebook: 'https://facebook.com/collegemigration',
@@ -69,6 +113,8 @@ export const registerService = async (data, callback) => {
         };
         const token = generateToken(tokenPayload);
 
+        await t.commit();
+
         return callback(
             messageHandler("Registration successful", true, SUCCESS, {
                 member: {
@@ -83,9 +129,10 @@ export const registerService = async (data, callback) => {
         );
 
     } catch (error) {
+        await t.rollback();
         console.error('Registration error:', error);
         return callback(
-            messageHandler("An error occurred during registration", false, BAD_REQUEST)
+            messageHandler(MESSAGES.AUTH.REGISTRATION_FAILED, false, BAD_REQUEST)
         );
     }
 };
@@ -94,19 +141,17 @@ export const loginService = async (data, callback) => {
     try {
         const { email, password } = data;
 
-        // Find member
         const member = await Member.findOne({ where: { email } });
         if (!member) {
             return callback(
-                messageHandler("User does not exist, kidly register", false, UNAUTHORIZED)
+                messageHandler(MESSAGES.AUTH.INVALID_CREDENTIALS, false, UNAUTHORIZED)
             );
         }
 
-        // Verify password
         const isValidPassword = await verifyPassword(password, member.password);
         if (!isValidPassword) {
             return callback(
-                messageHandler("Invalid credentials", false, UNAUTHORIZED)
+                messageHandler(MESSAGES.AUTH.INVALID_CREDENTIALS, false, UNAUTHORIZED)
             );
         }
 
@@ -117,26 +162,33 @@ export const loginService = async (data, callback) => {
         };
         const token = generateToken(tokenPayload);
 
-        // Prepare response data
-        const responseData = {
-            member: {
-                memberId: member.memberId,
-                email: member.email,
-                firstname: member.firstname,
-                lastname: member.lastname,
-                memberStatus: member.memberStatus
-            },
-            token
-        };
+        // Generate referral link if not exists
+        let referralCode = member.referralCode;
+        if (!referralCode) {
+            referralCode = generateReference('REF');
+            await member.update({ referralCode });
+        }
+
+        const referralLink = `${process.env.FRONTEND_URL}/register?ref=${referralCode}&type=Member&id=${member.memberId}`;
 
         return callback(
-            messageHandler("Login successful", true, SUCCESS, responseData)
+            messageHandler(MESSAGES.AUTH.LOGIN_SUCCESS, true, SUCCESS, {
+                member: {
+                    memberId: member.memberId,
+                    email: member.email,
+                    firstname: member.firstname,
+                    lastname: member.lastname,
+                    memberStatus: member.memberStatus
+                },
+                token,
+                referralCode,
+                referralLink
+            })
         );
-
     } catch (error) {
         console.error('Login error:', error);
         return callback(
-            messageHandler("An error occurred during login", false, BAD_REQUEST)
+            messageHandler(MESSAGES.AUTH.LOGIN_FAILED, false, BAD_REQUEST)
         );
     }
 };

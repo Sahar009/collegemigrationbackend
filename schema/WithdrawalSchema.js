@@ -1,59 +1,43 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+import { DataTypes } from 'sequelize';
+import sequelize from '../database/db.js';
 
 const Withdrawal = sequelize.define('Withdrawal', {
-    id: {
+    withdrawalId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
     },
-    memberId: {
+    userType: {
+        type: DataTypes.ENUM('Member', 'Agent'),
+        allowNull: false
+    },
+    userId: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'member_personal_information',
-            key: 'memberId'
-        }
+        allowNull: false
+    },
+    accountName: {
+        type: DataTypes.STRING(100),
+        allowNull: false
+    },
+    accountNumber: {
+        type: DataTypes.STRING(50),
+        allowNull: false
     },
     amount: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
     bankName: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
-    accountNumber: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
-    accountName: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(100),
         allowNull: false
     },
     status: {
-        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
-        defaultValue: 'pending'
-    },
-    processedBy: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-            model: 'admin_users',
-            key: 'adminId'
-        }
-    },
-    processedAt: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    createdAt: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+        type: DataTypes.ENUM('Pending', 'Approved', 'Rejected'),
+        defaultValue: 'Pending'
     }
 }, {
     tableName: 'withdrawals',
     timestamps: true
 });
 
-module.exports = Withdrawal;
+export default Withdrawal;

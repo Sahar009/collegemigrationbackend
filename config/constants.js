@@ -91,19 +91,44 @@ export const MESSAGES = {
     AUTH: {
         REGISTRATION_SUCCESS: 'Registration successful. Please check your email for verification.',
         LOGIN_SUCCESS: 'Login successful',
+        LOGIN_FAILED: 'Login failed',
+        REGISTRATION_SUCCESS: 'Registration successful',
+        REGISTRATION_FAILED: 'Registration failed',
+        EMAIL_EXISTS: 'Email already exists',
+        INVALID_TOKEN: 'Invalid token',
+        TOKEN_EXPIRED: 'Token expired',
+        UNAUTHORIZED: 'Unauthorized access',
+        VERIFICATION_REQUIRED: 'Email verification required',
         INVALID_CREDENTIALS: 'Invalid credentials',
         ACCOUNT_INACTIVE: 'Account is not active. Please contact support.',
         PASSWORD_RESET_SENT: 'Password reset OTP sent to your email',
         PASSWORD_RESET_SUCCESS: 'Password reset successful',
         INVALID_OTP: 'Invalid or expired OTP',
         EMAIL_VERIFIED: 'Email verified successfully',
-        PASSWORD_CHANGED: 'Password changed successfully'
+        PASSWORD_CHANGED: 'Password changed successfully',
+         PASSWORD_RESET_FAILED: 'Password reset failed',
+        ACCOUNT_DELETED: 'Account deleted successfully'
     },
     ERROR: {
         SERVER_ERROR: 'Internal server error',
         NOT_FOUND: 'Resource not found',
         UNAUTHORIZED: 'Unauthorized access',
         VALIDATION_ERROR: 'Validation error'
+    },
+    REFERRAL: {
+        INVALID_CODE: 'Invalid referral code',
+        INVALID_FORMAT: 'Invalid referral code format',
+        LINK_GENERATED: 'Referral link generated successfully',
+        CREATION_SUCCESS: 'Referral created successfully',
+        CREATION_FAILED: 'Failed to create referral',
+        STATUS_UPDATED: 'Referral status updated successfully'
+    },
+    GENERAL: {
+        SERVER_ERROR: 'An error occurred. Please try again later',
+        NOT_FOUND: 'Resource not found',
+        INVALID_REQUEST: 'Invalid request',
+        SUCCESS: 'Operation successful',
+        FAILED: 'Operation failed'
     }
 };
 

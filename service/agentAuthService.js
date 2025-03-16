@@ -6,9 +6,13 @@ import { Agent } from '../schema/AgentSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { Op } from 'sequelize';
+import { generateReference } from '../utils/reference.js';
+import sequelize from '../database/db.js';
 
 // Agent Registration
 export const registerAgent = async (data) => {
+    const t = await sequelize.transaction();
+
     try {
         const {
             companyName,
@@ -17,14 +21,25 @@ export const registerAgent = async (data) => {
             phone,
             password,
             address,
-            country
+            country,
+            ref,     // Referral code from URL query
+            type,    // Referrer type from URL query
+            id      // Referrer ID from URL query
         } = data;
 
         // Check if email already exists
-        const existingAgent = await Agent.findOne({ where: { email } });
+        const existingAgent = await Agent.findOne({ 
+            where: { email },
+            transaction: t 
+        });
+
         if (existingAgent) {
+            await t.rollback();
             return messageHandler('Email already registered', false, 400);
         }
+
+        // Generate unique referral code for the new agent
+        const referralCode = generateReference('REF');
 
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -39,8 +54,49 @@ export const registerAgent = async (data) => {
             address,
             country,
             status: 'pending',
-            commissionRate: 0
-        });
+            commissionRate: 0,
+            referralCode // Add referral code to agent
+        }, { transaction: t });
+
+        // Create referral record if valid referral code was provided
+        if (ref && type && id) {
+            // Verify referral code format
+            if (!validateReference(ref, 'REF')) {
+                await t.rollback();
+                return messageHandler("Invalid referral code format", false, 400);
+            }
+
+            // Verify referrer exists and owns this code
+            const referrer = type === 'Agent' 
+                ? await Agent.findOne({ 
+                    where: { 
+                        agentId: id,
+                        referralCode: ref 
+                    },
+                    transaction: t
+                })
+                : await Member.findOne({ 
+                    where: { 
+                        memberId: id,
+                        referralCode: ref 
+                    },
+                    transaction: t
+                });
+
+            if (!referrer) {
+                await t.rollback();
+                return messageHandler("Invalid referral code", false, 400);
+            }
+
+            // Create referral record
+            await Referral.create({
+                referralType: type,
+                referrerId: id,
+                memberId: newAgent.agentId,
+                status: 'unpaid',
+                statusDate: new Date()
+            }, { transaction: t });
+        }
 
         // Generate token for email verification
         const token = jwt.sign(
@@ -49,24 +105,20 @@ export const registerAgent = async (data) => {
             { expiresIn: '24h' }
         );
 
-        // Send verification email with error handling
-        try {
-            await sendEmail({
-                to: email,
-                subject: 'Verify Your Agent Account',
-                template: 'agentVerification',
-                context: {
-                    
-                    name: contactPerson,
-                    verificationLink: `${process.env.BASE_URL}/verify-agent/${token}`
-                }
-            });
-        } catch (emailError) {
-            console.error('Email sending failed:', emailError);
-            // Don't fail registration if email fails
-            // But log it for monitoring
-            console.log('Registration completed but verification email failed for:', email);
-        }
+        // Send verification email
+        await sendEmail({
+            to: email,
+            subject: 'Verify Your Agent Account',
+            template: 'agentVerification',
+            context: {
+                name: contactPerson,
+                verificationLink: `${process.env.BASE_URL}/verify-agent/${token}`,
+                referralCode, // Include referral code in email
+                referralLink: `${process.env.FRONTEND_URL}/register?ref=${referralCode}&type=Agent&id=${newAgent.agentId}`
+            }
+        });
+
+        await t.commit();
 
         return messageHandler(
             MESSAGES.AUTH.REGISTRATION_SUCCESS,
@@ -75,11 +127,14 @@ export const registerAgent = async (data) => {
             {
                 agentId: newAgent.agentId,
                 email: newAgent.email,
-                status: newAgent.status
+                status: newAgent.status,
+                referralCode,
+                referralLink: `${process.env.FRONTEND_URL}/register?ref=${referralCode}&type=Agent&id=${newAgent.agentId}`
             }
         );
 
     } catch (error) {
+        await t.rollback();
         console.error('Agent registration error:', error);
         return messageHandler(
             'Registration failed. Please try again.',
@@ -102,14 +157,19 @@ export const loginAgent = async (email, password) => {
             return messageHandler(MESSAGES.AUTH.INVALID_CREDENTIALS, false, 401);
         }
 
-        // if (agent.status !== 'active') {
-        //     return messageHandler(MESSAGES.AUTH.ACCOUNT_INACTIVE, false, 403);
-        // }
+        // Generate referral link if not exists
+        let referralCode = agent.referralCode;
+        if (!referralCode) {
+            referralCode = generateReference('REF');
+            await agent.update({ referralCode });
+        }
 
-        // Generate token with the exact same secret
+        const referralLink = `${process.env.FRONTEND_URL}/register?ref=${referralCode}&type=Agent&id=${agent.agentId}`;
+
+        // Generate token
         const token = jwt.sign(
             { id: agent.agentId },
-            process.env.JWT_SECRET, // Make sure this matches your .env file
+            process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
 
@@ -119,7 +179,9 @@ export const loginAgent = async (email, password) => {
                 email: agent.email,
                 status: agent.status
             },
-            token
+            token,
+            referralCode,
+            referralLink
         });
     } catch (error) {
         console.error('Login error:', error);

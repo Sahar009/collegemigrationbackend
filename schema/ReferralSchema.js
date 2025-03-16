@@ -1,47 +1,51 @@
 import { DataTypes } from 'sequelize';
-import sequelize from "../database/db.js";
-import { Member } from './memberSchema.js';
+import sequelize from '../database/db.js';
 
 const Referral = sequelize.define('Referral', {
-    rId: {
+    referralId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true
+        autoIncrement: true,
+        field: 'referralId'
     },
-    ref: {
-        type: DataTypes.ENUM('Member', 'Agent'),
-        allowNull: false
+    referralCode: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        field: 'referralCode'
     },
-    refId: {
+    referrerId: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: false,
+        field: 'referrerId'
+    },
+    referrerType: {
+        type: DataTypes.ENUM('Agent', 'Member'),
+        allowNull: false,
+        field: 'referrerType'
     },
     memberId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        field: 'memberId',
         references: {
             model: 'member_personal_information',
             key: 'memberId'
         }
     },
-    refStatus: {
-        type: DataTypes.ENUM('paid', 'unpaid'),
-        defaultValue: 'unpaid'
+    status: {
+        type: DataTypes.ENUM('unpaid', 'paid'),
+        defaultValue: 'unpaid',
+        field: 'status'
     },
-    refDate: {
+    statusDate: {
         type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    },
-    refStatusDate: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+        defaultValue: DataTypes.NOW,
+        field: 'statusDate'
     }
 }, {
     tableName: 'referrals',
-    timestamps: false
+    timestamps: true,
+    underscored: false
 });
-
-// Add association
-Referral.belongsTo(Member, { foreignKey: 'memberId' });
 
 export default Referral; 

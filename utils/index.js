@@ -135,20 +135,7 @@ export const validateDocumentUrls = (fieldName, urls) => {
   }
 };
 
-export const generateDepartmentID = (department) => {
-  try {
-    const prefix = department === 'inventory' ? 'INV' : department === 'customer_service' ? 'CS' : 'GEN';
-    const timestamp = Date.now();
 
-    const uniqueNumber = String(timestamp).slice(-3);  
-    const departmentId = `Nagida-${prefix}-${uniqueNumber}`;
-
-    return departmentId;
-  } catch (error) {
-    console.error('Error generating department ID:', error);
-    return null;
-  }
-};
 
 // query constructor
 

@@ -67,6 +67,11 @@ const Agent = sequelize.define('Agent', {
     updatedAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
+    },
+    referralCode: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        unique: true
     }
 }, {
     tableName: 'agents',

@@ -114,7 +114,7 @@ const checkRequiredDocuments = async (memberId, programCategory) => {
 
 export const initiateApplicationService = async (memberId, programData, callback) => {
     try {
-        // Check active applications limit
+         // Check active applications limit
         // const canApply = await checkActiveApplicationsCount(memberId);
         // if (!canApply) {
         //     return callback(messageHandler(
@@ -123,7 +123,6 @@ export const initiateApplicationService = async (memberId, programData, callback
         //         BAD_REQUEST
         //     ));
         // }
-
         // Verify profile completion
         const isProfileComplete = await verifyMemberProfile(memberId);
         if (!isProfileComplete) {
@@ -136,20 +135,32 @@ export const initiateApplicationService = async (memberId, programData, callback
 
         const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
         if (!isComplete) {
-            const formattedDocs = missingDocs.map(doc => 
-                doc
-                    .replace(/([A-Z])/g, ' $1') 
-                    .replace(/^./, str => str.toUpperCase()) 
-                    .trim()
-            );
+            // Create user-friendly document descriptions
+            const documentDescriptions = {
+                'International Passport': 'International Passport (must be valid for at least 6 months)',
+                'Olevel Result': 'O-Level Result (WAEC, NECO, or equivalent)',
+                'Olevel Pin': 'O-Level Result Checker PIN/Scratch Card',
+                'Academic Reference Letter': 'Academic Reference Letter from your previous institution',
+                'Resume': 'Updated CV/Resume (including your work experience and education)',
+                'Language Test Cert': 'English Language Proficiency Certificate (IELTS, TOEFL, or equivalent)',
+                'Birth Certificate': 'Birth Certificate or Age Declaration',
+                'Transcript': 'Official Academic Transcript from your previous institution',
+                'Degree Certificate': 'Bachelor\'s Degree Certificate or Statement of Result',
+                'Personal Statement': 'Personal Statement/Statement of Purpose',
+                'Recommendation Letter': 'Professional or Academic Recommendation Letter'
+            };
+
+            const formattedDocs = missingDocs.map(doc => documentDescriptions[doc] || doc);
 
             return callback(messageHandler(
                 {
-                    message: "Missing required documents",
+                    message: "Required Documents Missing",
                     details: {
+                        title: "Please upload the following documents to proceed:",
                         missingDocuments: formattedDocs,
-                        programCategory: programData.programCategory,
-                        totalMissing: missingDocs.length
+                        note: "All documents should be clear, legible, and in PDF or JPG format. Maximum file size: 5MB per document.",
+                        totalMissing: missingDocs.length,
+                        helpText: "Need help? Contact our support team for guidance on document requirements."
                     }
                 },
                 false,
