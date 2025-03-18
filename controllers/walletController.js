@@ -10,17 +10,12 @@ export const getWalletBalance = async (req, res) => {
         const userId = req.user.id;
         const userType = req.user.type;
 
-        const result = await getWalletBalanceService(userId, userType);
-        return res.status(result.statusCode).json(result);
-
+        const response = await getWalletBalanceService(userId, userType);
+        return res.status(response.statusCode).json(response);
     } catch (error) {
-        console.error('Get wallet balance controller error:', error);
+        console.error('Get wallet balance error:', error);
         return res.status(500).json(
-            messageHandler(
-                error.message || 'Failed to get wallet balance',
-                false,
-                500
-            )
+            messageHandler('Failed to get wallet balance', false, 500)
         );
     }
 };
@@ -30,17 +25,12 @@ export const getWalletTransactions = async (req, res) => {
         const userId = req.user.id;
         const userType = req.user.type;
 
-        const result = await getWalletTransactionsService(userId, userType, req.query);
-        return res.status(result.statusCode).json(result);
-
+        const response = await getWalletTransactionsService(userId, userType, req.query);
+        return res.status(response.statusCode).json(response);
     } catch (error) {
-        console.error('Get wallet transactions controller error:', error);
+        console.error('Get wallet transactions error:', error);
         return res.status(500).json(
-            messageHandler(
-                error.message || 'Failed to get transactions',
-                false,
-                500
-            )
+            messageHandler('Failed to get transactions', false, 500)
         );
     }
 };

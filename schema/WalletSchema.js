@@ -12,12 +12,13 @@ const Wallet = sequelize.define('Wallet', {
         allowNull: false
     },
     userType: {
-        type: DataTypes.ENUM('Member', 'Agent'),
+        type: DataTypes.ENUM('agent', 'member'),
         allowNull: false
     },
     balance: {
         type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 0
+        defaultValue: 0.00,
+        allowNull: false
     }
 }, {
     tableName: 'wallets',

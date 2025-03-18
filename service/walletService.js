@@ -6,15 +6,37 @@ import sequelize from '../database/db.js';
 
 export const getWalletBalanceService = async (userId, userType) => {
     try {
+        // Validate userType
+        if (!userType) {
+            return messageHandler(
+                'User type is required',
+                false,
+                400
+            );
+        }
+
         const wallet = await Wallet.findOne({
-            where: { userId, userType }
+            where: {
+                userId: userId,
+                userType: userType.toLowerCase()
+            }
         });
+
+        // If wallet doesn't exist, return zero balance
+        if (!wallet) {
+            return messageHandler(
+                'Wallet balance retrieved successfully',
+                true,
+                200,
+                { balance: 0.00 }
+            );
+        }
 
         return messageHandler(
             'Wallet balance retrieved successfully',
             true,
             200,
-            wallet || { balance: 0 }
+            wallet
         );
 
     } catch (error) {
@@ -29,22 +51,46 @@ export const getWalletBalanceService = async (userId, userType) => {
 
 export const getWalletTransactionsService = async (userId, userType, query) => {
     try {
+        // Validate userType
+        if (!userType) {
+            return messageHandler(
+                'User type is required',
+                false,
+                400
+            );
+        }
+
         const page = parseInt(query.page) || 1;
         const limit = parseInt(query.limit) || 10;
         const offset = (page - 1) * limit;
 
+        // Find wallet
         const wallet = await Wallet.findOne({
-            where: { userId, userType }
+            where: {
+                userId: userId,
+                userType: userType.toLowerCase()
+            }
         });
 
+        // If wallet doesn't exist, return empty transactions
         if (!wallet) {
             return messageHandler(
-                'Wallet not found',
-                false,
-                404
+                'No transactions found',
+                true,
+                200,
+                {
+                    transactions: [],
+                    pagination: {
+                        totalItems: 0,
+                        totalPages: 0,
+                        currentPage: page,
+                        pageSize: limit
+                    }
+                }
             );
         }
 
+        // Get transactions
         const { count, rows: transactions } = await WalletTransaction.findAndCountAll({
             where: { walletId: wallet.walletId },
             order: [['createdAt', 'DESC']],

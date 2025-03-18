@@ -7,6 +7,60 @@ import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
 import AgentStudentDocument from '../schema/AgentStudentDocumentSchema.js';
 import AgentTransaction from '../schema/AgentTransactionSchema.js';
 
+// Add these helper functions at the top
+const checkRequiredDocuments = async (memberId, programCategory) => {
+    try {
+        // Get all documents for the student
+        const documents = await AgentStudentDocument.findAll({
+            where: { memberId },
+            attributes: ['documentType']
+        });
+
+        const uploadedDocTypes = documents.map(doc => doc.documentType);
+
+        // Define required documents based on program category
+        const requiredDocs = {
+            undergraduate: [
+                'internationalPassport',
+                'olevelResult',
+                'olevelPin',
+                'academicReferenceLetter',
+                'resume',
+                'languageTestCert'
+            ],
+            postgraduate: [
+                'internationalPassport',
+                'olevelResult',
+                'academicReferenceLetter',
+                'resume',
+                'universityDegreeCertificate',
+                'universityTranscript',
+                'sop',
+                'researchDocs',
+                'languageTestCert'
+            ]
+        };
+
+        const docsRequired = requiredDocs[programCategory.toLowerCase()];
+        if (!docsRequired) {
+            throw new Error('Invalid program category');
+        }
+
+        const missingDocs = docsRequired.filter(
+            docType => !uploadedDocTypes.includes(docType)
+        );
+
+        return {
+            isComplete: missingDocs.length === 0,
+            missingDocs
+        };
+
+    } catch (error) {
+        console.error('Check required documents error:', error);
+        throw error;
+    }
+};
+
 // Create Application for Agent Student
 export const createAgentApplicationService = async (agentId, data, callback) => {
     try {
@@ -26,8 +80,12 @@ export const createAgentApplicationService = async (agentId, data, callback) => 
             ));
         }
 
-        // Check if program exists
-        const program = await Program.findByPk(data.programId);
+        // Check if program exists and get full program details
+        const program = await Program.findOne({
+            where: { programId: data.programId },
+            attributes: ['programId', 'programName', 'category', 'degree']
+        });
+
         if (!program) {
             return callback(messageHandler(
                 "Program not found",
@@ -36,14 +94,66 @@ export const createAgentApplicationService = async (agentId, data, callback) => 
             ));
         }
 
+        // Use the category field directly since it's already an ENUM('undergraduate', 'postgraduate', 'phd')
+        const programCategory = program.category;
+
+        if (!programCategory) {
+            return callback(messageHandler(
+                "Unable to determine program category",
+                false,
+                BAD_REQUEST
+            ));
+        }
+
+        // Check required documents
+        const { isComplete, missingDocs } = await checkRequiredDocuments(
+            data.memberId, 
+            programCategory
+        );
+
+        if (!isComplete) {
+            // Create user-friendly document descriptions
+            const documentDescriptions = {
+                'internationalPassport': 'International Passport (must be valid for at least 6 months)',
+                'olevelResult': 'O-Level Result (WAEC, NECO, or equivalent)',
+                'olevelPin': 'O-Level Result Checker PIN/Scratch Card',
+                'academicReferenceLetter': 'Academic Reference Letter from previous institution',
+                'resume': 'Updated CV/Resume (including work experience and education)',
+                'languageTestCert': 'English Language Proficiency Certificate (IELTS, TOEFL, or equivalent)',
+                'universityDegreeCertificate': 'Bachelor\'s Degree Certificate or Statement of Result',
+                'universityTranscript': 'Official Academic Transcript',
+                'sop': 'Statement of Purpose',
+                'researchDocs': 'Research Proposal/Writing Sample'
+            };
+
+            const formattedDocs = missingDocs.map(doc => documentDescriptions[doc] || doc);
+            console.log('error', formattedDocs)
+            return callback(messageHandler(
+                {
+                    message: "Required Documents Missing",
+                    details: {
+                        title: "Please upload the following documents for your student to proceed:",
+                        missingDocuments: formattedDocs,
+                        note: "All documents should be clear, legible, and in PDF or JPG format. Maximum file size: 5MB per document.",
+                        totalMissing: missingDocs.length,
+                        helpText: "Need help? Contact our support team for guidance on document requirements.",
+                        programCategory: programCategory // For debugging
+                    }
+                },
+                false,
+                BAD_REQUEST
+            ));
+        }
+
         // Create application with proper ENUM values
         const application = await AgentApplication.create({
             agentId,
             memberId: data.memberId,
             programId: data.programId,
-            applicationStage: 'documents',  // Using ENUM value
-            paymentStatus: 'pending',       // Using ENUM value
-            applicationStatus: 'pending',    // Using ENUM value
+            programCategory: programCategory, // Using the category from program
+            applicationStage: 'documents',
+            paymentStatus: 'pending',
+            applicationStatus: 'pending',
             intake: data.intake,
             applicationDate: new Date()
         });
@@ -58,7 +168,7 @@ export const createAgentApplicationService = async (agentId, data, callback) => 
     } catch (error) {
         console.error('Create application error:', error);
         return callback(messageHandler(
-            "Error creating application",
+            error.message || "Error creating application",
             false,
             BAD_REQUEST
         ));
