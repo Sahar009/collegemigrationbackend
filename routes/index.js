@@ -1,3 +1,4 @@
+import express from 'express';
 import applicationRouter from './application/index.js';
 import authRouter from './auth/index.js'
 import onboardingRouter from './onboarding/onboardingRoutes.js';
@@ -6,6 +7,7 @@ import paymentRouter from './payment/index.js';
 import agentRouter from './agent/index.js';
 import walletRouter from './wallet/wallet.js';
 import referralRouter from './referral/referral.js';
+import adminRouter from './admin/index.js';
 
 const router = (app) => {
     const API_PREFIX = '/api/v1';
@@ -17,6 +19,7 @@ const router = (app) => {
     app.use(`${API_PREFIX}/agent`, agentRouter);
     app.use(`${API_PREFIX}/wallet`, walletRouter);
     app.use(`${API_PREFIX}/referral`, referralRouter);
+    app.use(`${API_PREFIX}/admin`, adminRouter);
 };
 
 export default router;

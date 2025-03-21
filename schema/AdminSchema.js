@@ -1,6 +1,6 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const bcrypt = require('bcrypt');
+import { DataTypes } from 'sequelize';
+import sequelize from '../database/db.js';
+import bcrypt from 'bcryptjs'
 
 const Admin = sequelize.define('Admin', {
     adminId: {
@@ -8,13 +8,10 @@ const Admin = sequelize.define('Admin', {
         primaryKey: true,
         autoIncrement: true
     },
-    firstname: {
+    username: {
         type: DataTypes.STRING,
-        allowNull: false
-    },
-    lastname: {
-        type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
+        unique: true
     },
     email: {
         type: DataTypes.STRING,
@@ -28,8 +25,12 @@ const Admin = sequelize.define('Admin', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    fullName: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     role: {
-        type: DataTypes.ENUM('super_admin', 'admin', 'manager'),
+        type: DataTypes.ENUM('super_admin', 'admin', 'moderator'),
         defaultValue: 'admin'
     },
     status: {
@@ -57,4 +58,4 @@ const Admin = sequelize.define('Admin', {
     }
 });
 
-module.exports = Admin;
+export default Admin;
