@@ -1,10 +1,11 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Admin from '../schema/AdminSchema.js';
-import { messageHandler } from '../utils/index.js';
+import { messageHandler, hashPassword, verifyPassword, generateAdminToken } from '../utils/index.js';
 import { BAD_REQUEST, SUCCESS, UNAUTHORIZED } from '../constants/statusCode.js';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/sendEmail.js';
+import { Op } from 'sequelize';
 
 // Admin login
 export const login = async (req, res) => {
@@ -24,6 +25,7 @@ export const login = async (req, res) => {
         const admin = await Admin.findOne({ where: { email } });
         
         if (!admin) {
+            console.log('Admin not found with email:', email);
             return res.status(UNAUTHORIZED).json(
                 messageHandler(
                     "Invalid credentials",
@@ -43,9 +45,11 @@ export const login = async (req, res) => {
             );
         }
         
-        const isPasswordValid = await bcrypt.compare(password, admin.password);
+        // Use the utility function instead of direct bcrypt
+        const isPasswordValid = await verifyPassword(password, admin.password);
         
         if (!isPasswordValid) {
+            console.log('Password validation failed for admin:', email);
             return res.status(UNAUTHORIZED).json(
                 messageHandler(
                     "Invalid credentials",
@@ -55,12 +59,8 @@ export const login = async (req, res) => {
             );
         }
         
-        // Generate JWT token
-        const token = jwt.sign(
-            { id: admin.adminId, role: admin.role },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }
-        );
+        // Generate token using the utility function
+        const token = generateAdminToken(admin);
         
         // Update last login
         await admin.update({ lastLogin: new Date() });
@@ -223,7 +223,7 @@ export const changePassword = async (req, res) => {
         }
         
         // Verify current password
-        const isPasswordValid = await bcrypt.compare(currentPassword, admin.password);
+        const isPasswordValid = await verifyPassword(currentPassword, admin.password);
         
         if (!isPasswordValid) {
             return res.status(UNAUTHORIZED).json(
@@ -236,7 +236,7 @@ export const changePassword = async (req, res) => {
         }
         
         // Hash new password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        const hashedPassword = await hashPassword(newPassword);
         
         // Update password
         await admin.update({ password: hashedPassword });
@@ -370,7 +370,7 @@ export const resetPassword = async (req, res) => {
         }
         
         // Hash new password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        const hashedPassword = await hashPassword(newPassword);
         
         // Update password and clear reset token
         await admin.update({
@@ -443,14 +443,13 @@ export const createAdmin = async (req, res) => {
             );
         }
         
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        console.log('Creating admin with email:', email);
         
-        // Create admin
+        // Create admin with plain password - the hook will hash it
         const newAdmin = await Admin.create({
             username,
             email,
-            password: hashedPassword,
+            password, // Pass the plain password, the hook will hash it
             fullName,
             role,
             status: 'active'

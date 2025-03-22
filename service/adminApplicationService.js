@@ -9,6 +9,7 @@ import AgentStudentDocument from '../schema/AgentStudentDocumentSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 // Get all applications with filtering and pagination
 export const getAllApplicationsService = async (query) => {
@@ -290,6 +291,9 @@ export const updateApplicationStatusService = async (applicationId, applicationT
     
     try {
         let application;
+        let oldStatus;
+        let userId;
+        let userType;
         
         if (applicationType === 'direct') {
             application = await Application.findByPk(applicationId, { transaction: t });
@@ -298,6 +302,10 @@ export const updateApplicationStatusService = async (applicationId, applicationT
                 await t.rollback();
                 return messageHandler('Application not found', false, 404);
             }
+            
+            oldStatus = application.applicationStatus;
+            userId = application.memberId;
+            userType = 'member';
             
             await application.update({
                 applicationStatus: updateData.applicationStatus || application.applicationStatus,
@@ -313,6 +321,10 @@ export const updateApplicationStatusService = async (applicationId, applicationT
                 return messageHandler('Application not found', false, 404);
             }
             
+            oldStatus = application.applicationStatus;
+            userId = application.agentId;
+            userType = 'agent';
+            
             await application.update({
                 applicationStatus: updateData.applicationStatus || application.applicationStatus,
                 paymentStatus: updateData.paymentStatus || application.paymentStatus,
@@ -325,6 +337,11 @@ export const updateApplicationStatusService = async (applicationId, applicationT
         }
         
         await t.commit();
+        
+        // Send email notification if status has changed
+        if (updateData.applicationStatus && oldStatus !== updateData.applicationStatus) {
+            await sendStatusUpdateEmail(application, userId, userType);
+        }
         
         return messageHandler(
             'Application status updated successfully',
@@ -340,6 +357,81 @@ export const updateApplicationStatusService = async (applicationId, applicationT
             false,
             500
         );
+    }
+};
+
+// Helper function to send status update email
+const sendStatusUpdateEmail = async (application, userId, userType) => {
+    try {
+        let user;
+        let email;
+        let name;
+        
+        // Get user details based on user type
+        if (userType === 'member') {
+            user = await Member.findByPk(userId);
+            if (user) {
+                email = user.email;
+                name = `${user.firstname} ${user.lastname}`;
+            }
+        } else if (userType === 'agent') {
+            user = await Agent.findByPk(userId);
+            if (user) {
+                email = user.email;
+                name = user.contactPerson || user.companyName;
+            }
+        }
+        
+        if (!user || !email) {
+            console.error('User not found or email missing for notification');
+            return;
+        }
+        
+        // Create status message based on application status
+        let statusMessage;
+        switch (application.applicationStatus) {
+            case 'pending':
+                statusMessage = 'is pending review by our team';
+                break;
+            case 'in_review':
+                statusMessage = 'is currently under review by our team';
+                break;
+            case 'approved':
+                statusMessage = 'has been approved! Congratulations!';
+                break;
+            case 'rejected':
+                statusMessage = 'has been declined. We appreciate your interest.';
+                break;
+            case 'on_hold':
+                statusMessage = 'has been placed on hold. We may need additional information.';
+                break;
+            case 'submitted_to_school':
+                statusMessage = 'has been submitted to the school. We will update you on their response.';
+                break;
+            default:
+                statusMessage = `has been updated to ${application.applicationStatus}`;
+        }
+        
+        // Send email notification
+        await sendEmail({
+            to: email,
+            subject: `Application Status Update - ${application.trackingId || application.applicationId}`,
+            template: 'applicationStatusUpdate',
+            context: {
+                name,
+                trackingId: application.trackingId || application.applicationId,
+                status: application.applicationStatus,
+                statusMessage,
+                applicationStage: application.applicationStage,
+                statusDate: new Date().toLocaleDateString(),
+                loginUrl: process.env.FRONTEND_URL + '/login'
+            }
+        });
+        
+        console.log(`Status update email sent to ${email} for application ${application.applicationId}`);
+    } catch (error) {
+        console.error('Failed to send status update email:', error);
+        // Don't throw the error - we don't want to fail the status update if email fails
     }
 };
 

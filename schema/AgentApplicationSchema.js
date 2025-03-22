@@ -39,7 +39,7 @@ const AgentApplication = sequelize.define('AgentApplication', {
         defaultValue: 'documents'
     },
     paymentStatus: {
-        type: DataTypes.ENUM('pending', 'paid', 'refunded'),
+        type: DataTypes.ENUM('pending', 'paid', 'refunded','failed'),
         defaultValue: 'pending'
     },
     applicationStatus: {
