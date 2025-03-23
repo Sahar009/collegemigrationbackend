@@ -26,6 +26,7 @@ import {
     validateUpdateDocumentStatus,
     validateSendToSchool
 } from '../../middleware/adminApplicationValidation.js';
+import * as adminDashboardController from '../../controllers/adminDashboardController.js';
 
 const adminRouter = express.Router();
 
@@ -87,5 +88,8 @@ adminRouter.put('/admins/:adminId/status',
     validateUpdateAdminStatus,
     asyncHandler(adminAuthController.updateAdminStatus)
 );
+
+//dashboard routes
+adminRouter.get('/dashboard', asyncHandler(adminDashboardController.getDashboardMetrics));
 
 export default adminRouter; 
