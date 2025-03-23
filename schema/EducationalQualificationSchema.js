@@ -54,3 +54,4 @@ const EducationalQualification = sequelize.define('EducationalQualification', {
 });
 
 EducationalQualification.belongsTo(Member, { foreignKey: 'memberId' }); 
+export default EducationalQualification
