@@ -11,9 +11,9 @@ import Wallet from '../schema/WalletSchema.js';
 import Referral from '../schema/ReferralSchema.js';
 import { Program } from '../schema/programSchema.js';
 import { ApplicationDocument } from '../schema/applicationDocumentSchema.js';
-import {Transaction} from '../schema/TransactionSchema.js';
 import AgentTransaction from '../schema/AgentTransactionSchema.js';
 import sequelize from '../database/db.js';
+import { Transaction } from '../schema/transactionSchema.js';
 
 // Get all users (members and agents) with pagination and filtering
 export const getAllUsersService = async (query) => {
