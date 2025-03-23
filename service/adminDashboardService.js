@@ -7,7 +7,7 @@ import Referral from '../schema/ReferralSchema.js';
 import { messageHandler } from '../utils/index.js';
 import sequelize from '../database/db.js';
 import { Op } from 'sequelize';
-import { Transaction } from '../schema/TransactionSchema.js';
+import { Transaction } from '../schema/transactionSchema.js';
 
 export const getDashboardMetricsService = async (startDate = null, endDate = null) => {
   try {
