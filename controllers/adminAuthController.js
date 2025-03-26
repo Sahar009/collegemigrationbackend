@@ -97,7 +97,22 @@ export const login = async (req, res) => {
 // Get admin profile
 export const getProfile = async (req, res) => {
     try {
-        const adminId = req.admin.id;
+        // Check if req.user exists (from JWT middleware) instead of req.admin
+        if (!req.user) {
+            return res.status(401).json(
+                messageHandler(
+                    "Unauthorized - Authentication required",
+                    false,
+                    401
+                )
+            );
+        }
+        
+        // Use req.user.id instead of req.admin.id
+        const adminId = req.user.id;
+        
+        // Add debugging to see what's in the request
+        console.log('Auth user object:', req.user);
         
         const admin = await Admin.findByPk(adminId, {
             attributes: { exclude: ['password'] }
@@ -136,7 +151,7 @@ export const getProfile = async (req, res) => {
 // Update admin profile
 export const updateProfile = async (req, res) => {
     try {
-        const adminId = req.admin.id;
+        const adminId =  req.user.id;
         const { fullName, email, username } = req.body;
         
         const admin = await Admin.findByPk(adminId);
@@ -187,7 +202,7 @@ export const updateProfile = async (req, res) => {
 // Change password
 export const changePassword = async (req, res) => {
     try {
-        const adminId = req.admin.id;
+        const adminId = req.user.id;
         const { currentPassword, newPassword } = req.body;
         
         if (!currentPassword || !newPassword) {

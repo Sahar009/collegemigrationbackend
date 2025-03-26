@@ -27,7 +27,9 @@ import {
     validateSendToSchool
 } from '../../middleware/adminApplicationValidation.js';
 import * as adminDashboardController from '../../controllers/adminDashboardController.js';
-
+import * as adminProgramController from '../../controllers/adminProgramController.js';
+import * as adminSchoolController from '../../controllers/adminSchoolController.js';
+import * as adminTransactionController from '../../controllers/adminTransactionController.js';
 const adminRouter = express.Router();
 
 // Auth routes (public)
@@ -91,5 +93,26 @@ adminRouter.put('/admins/:adminId/status',
 
 //dashboard routes
 adminRouter.get('/dashboard', asyncHandler(adminDashboardController.getDashboardMetrics));
+
+//program routes
+adminRouter.get('/programs', asyncHandler(adminProgramController.getAllPrograms));
+adminRouter.get('/programs/:programId', asyncHandler(adminProgramController.getProgramById));
+adminRouter.post('/programs', asyncHandler(adminProgramController.createProgram));
+adminRouter.put('/programs/:programId', asyncHandler(adminProgramController.updateProgram));
+adminRouter.put('/programs/:programId/status', asyncHandler(adminProgramController.toggleProgramStatus));
+adminRouter.post('/programs/import', asyncHandler(adminProgramController.importProgramsFromCSV));
+
+//school routes
+adminRouter.get('/schools', asyncHandler(adminSchoolController.getAllSchools));
+adminRouter.get('/schools/:schoolId', asyncHandler(adminSchoolController.getSchoolById));
+adminRouter.post('/schools', asyncHandler(adminSchoolController.createSchool));
+adminRouter.put('/schools/:schoolId', asyncHandler(adminSchoolController.updateSchool));
+adminRouter.put('/schools/:schoolId/status', asyncHandler(adminSchoolController.toggleSchoolStatus));
+adminRouter.post('/schools/import', asyncHandler(adminSchoolController.importSchoolsFromCSV));
+
+// Transaction management routes
+adminRouter.get('/transactions', asyncHandler(adminTransactionController.getAllTransactions));
+adminRouter.get('/transactions/:transactionType/:transactionId', asyncHandler(adminTransactionController.getTransactionById));
+adminRouter.get('/transactions/export', asyncHandler(adminTransactionController.exportTransactions));
 
 export default adminRouter; 
