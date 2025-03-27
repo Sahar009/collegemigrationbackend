@@ -345,57 +345,70 @@ export const updateApplicationStatusService = async (applicationId, applicationT
         }
         
         // Send notification to user about status change
-        if (updateData.applicationStatus && oldStatus !== updateData.applicationStatus) {
-            // Create status message based on application status
-            let statusMessage;
-            let title;
+        if (updateData.applicationStatus && application.applicationStatus !== updateData.applicationStatus) {
+            let userId;
+            let userType;
             
-            switch (updateData.applicationStatus) {
-                case 'pending':
-                    title = 'Application Pending';
-                    statusMessage = 'Your application is pending review by our team.';
-                    break;
-                case 'in_review':
-                    title = 'Application In Review';
-                    statusMessage = 'Your application is currently under review by our team.';
-                    break;
-                case 'approved':
-                    title = 'Application Approved!';
-                    statusMessage = 'Congratulations! Your application has been approved.';
-                    break;
-                case 'rejected':
-                    title = 'Application Declined';
-                    statusMessage = 'We regret to inform you that your application has been declined.';
-                    break;
-                case 'on_hold':
-                    title = 'Application On Hold';
-                    statusMessage = 'Your application has been placed on hold. We may need additional information.';
-                    break;
-                case 'submitted_to_school':
-                    title = 'Application Submitted to School';
-                    statusMessage = 'Your application has been submitted to the school. We will update you on their response.';
-                    break;
-                default:
-                    title = 'Application Status Updated';
-                    statusMessage = `Your application status has been updated to ${updateData.applicationStatus}.`;
+            if (applicationType === 'member') {
+                userId = application.memberId;
+                userType = 'member';
+            } else if (applicationType === 'agent') {
+                userId = application.agentId;
+                userType = 'agent';
             }
             
-            // Create notification
-            await createNotification({
-                userId,
-                userType,
-                type: 'application',
-                title,
-                message: statusMessage,
-                link: `/${userType}/applications/${applicationId}`,
-                priority: 2,
-                metadata: {
-                    applicationId,
-                    applicationType,
-                    oldStatus,
-                    newStatus: updateData.applicationStatus
+            if (userId) {
+                // Create status message based on application status
+                let statusMessage;
+                let title;
+                
+                switch (updateData.applicationStatus) {
+                    case 'pending':
+                        title = 'Application Pending';
+                        statusMessage = 'Your application is pending review by our team.';
+                        break;
+                    case 'in_review':
+                        title = 'Application In Review';
+                        statusMessage = 'Your application is currently under review by our team.';
+                        break;
+                    case 'approved':
+                        title = 'Application Approved!';
+                        statusMessage = 'Congratulations! Your application has been approved.';
+                        break;
+                    case 'rejected':
+                        title = 'Application Declined';
+                        statusMessage = 'We regret to inform you that your application has been declined.';
+                        break;
+                    case 'on_hold':
+                        title = 'Application On Hold';
+                        statusMessage = 'Your application has been placed on hold. We may need additional information.';
+                        break;
+                    case 'submitted_to_school':
+                        title = 'Application Submitted to School';
+                        statusMessage = 'Your application has been submitted to the school. We will update you on their response.';
+                        break;
+                    default:
+                        title = 'Application Status Updated';
+                        statusMessage = `Your application status has been updated to ${updateData.applicationStatus}.`;
                 }
-            });
+                
+                // Create notification
+                await createNotification({
+                    userId,
+                    userType,
+                    type: 'application',
+                    title,
+                    message: statusMessage,
+                    link: `/${userType}/applications/${applicationId}`,
+                    priority: 2,
+                    metadata: {
+                        applicationId,
+                        applicationType,
+                        oldStatus: application.applicationStatus,
+                        newStatus: updateData.applicationStatus
+                    }
+                });
+            }
         }
         
         return messageHandler(
@@ -508,6 +521,75 @@ export const updateDocumentStatusService = async (documentId, documentType, stat
         }
         
         await document.update({ status });
+        
+        // Send notification to user about document status change
+        if (document.status !== status) {
+            let userId;
+            let userType;
+            let applicationId;
+            
+            if (documentType === 'member') {
+                // Get the application associated with this document
+                const application = await Application.findOne({
+                    where: { applicationId: document.applicationId }
+                });
+                
+                if (application) {
+                    userId = application.memberId;
+                    userType = 'member';
+                    applicationId = application.applicationId;
+                }
+            } else if (documentType === 'agent') {
+                // Get the application associated with this document
+                const application = await AgentApplication.findOne({
+                    where: { applicationId: document.applicationId }
+                });
+                
+                if (application) {
+                    userId = application.agentId;
+                    userType = 'agent';
+                    applicationId = application.applicationId;
+                }
+            }
+            
+            if (userId) {
+                // Create status message based on document status
+                let statusMessage;
+                let title;
+                
+                switch (status) {
+                    case 'approved':
+                        title = 'Document Approved';
+                        statusMessage = `Your document "${document.documentType}" has been approved.`;
+                        break;
+                    case 'rejected':
+                        title = 'Document Rejected';
+                        statusMessage = `Your document "${document.documentType}" has been rejected. Please upload a new version.`;
+                        break;
+                    default:
+                        title = 'Document Status Updated';
+                        statusMessage = `Your document "${document.documentType}" status has been updated to ${status}.`;
+                }
+                
+                // Create notification
+                await createNotification({
+                    userId,
+                    userType,
+                    type: 'document',
+                    title,
+                    message: statusMessage,
+                    link: `/${userType}/applications/${applicationId}/documents`,
+                    priority: 1,
+                    metadata: {
+                        documentId,
+                        documentType: document.documentType,
+                        applicationId,
+                        oldStatus: document.status,
+                        newStatus: status
+                    }
+                });
+            }
+        }
         
         return messageHandler(
             'Document status updated successfully',

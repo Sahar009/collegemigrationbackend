@@ -13,7 +13,7 @@ const Notification = sequelize.define('Notification', {
         comment: 'ID of the user (member or agent)'
     },
     userType: {
-        type: DataTypes.ENUM('member', 'agent'),
+        type: DataTypes.ENUM('member', 'agent', 'admin'),
         allowNull: false,
         comment: 'Type of user receiving the notification'
     },

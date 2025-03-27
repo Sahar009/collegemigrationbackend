@@ -15,6 +15,7 @@ import studentRouter from './student.js';
 import applicationRouter from './application.js';
 import paymentRouter from './payment.js';
 import * as notificationController from '../../controllers/notificationController.js';
+import * as withdrawalController from '../../controllers/withdrawalController.js';
 
 const agentRouter = express.Router();
 
@@ -97,6 +98,11 @@ agentRouter.get('/notifications/unread-count', asyncHandler(notificationControll
 agentRouter.patch('/notifications/:notificationId/read', asyncHandler(notificationController.readNotification));
 agentRouter.patch('/notifications/read-all', asyncHandler(notificationController.readAllNotifications));
 
+//withdrawal routes
+// Add these routes
+agentRouter.get('/wallet/balance', asyncHandler(withdrawalController.getWalletBalance));
+agentRouter.get('/withdrawals', asyncHandler(withdrawalController.getUserWithdrawals));
+agentRouter.post('/withdrawals', asyncHandler(withdrawalController.createWithdrawal));
 // Error handling middleware
 agentRouter.use((err, req, res, next) => {
     console.error('Route Error:', err);

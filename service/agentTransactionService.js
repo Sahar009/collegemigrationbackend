@@ -2,6 +2,7 @@ import AgentTransaction from '../schema/AgentTransactionSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import { createNotification } from './notificationService.js';
+import AgentApplication from '../schema/AgentApplicationSchema.js';
 
 export const createAgentTransaction = async (data) => {
     try {
@@ -34,6 +35,32 @@ export const createAgentTransaction = async (data) => {
                 currency: data.currency
             }
         });
+
+        // If this transaction is associated with an agent application, notify the agent too
+        if (data.applicationId) {
+            // Get the agent application to find the agent ID
+            const agentApplication = await AgentApplication.findOne({
+                where: { applicationId: data.applicationId }
+            });
+            
+            if (agentApplication && agentApplication.agentId) {
+                await createNotification({
+                    userId: agentApplication.agentId,
+                    userType: 'agent',
+                    type: 'payment',
+                    title: 'New Transaction for Your Application',
+                    message: `A new transaction of ${data.amount} ${data.currency} has been created for application #${data.applicationId}.`,
+                    link: `/agent/transactions/${transaction.transactionId}`,
+                    priority: 1,
+                    metadata: {
+                        transactionId: transaction.transactionId,
+                        applicationId: data.applicationId,
+                        amount: data.amount,
+                        currency: data.currency
+                    }
+                });
+            }
+        }
 
         return messageHandler(
             'Transaction created successfully',

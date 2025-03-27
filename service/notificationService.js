@@ -1,11 +1,8 @@
 import Notification from '../schema/NotificationSchema.js';
 import { messageHandler } from '../utils/index.js';
+import sequelize from '../database/db.js';
 
-/**
- * Create a new notification
- * @param {Object} data - Notification data
- * @returns {Object} Response object
- */
+
 export const createNotification = async (data) => {
     try {
         const notification = await Notification.create({
@@ -35,13 +32,7 @@ export const createNotification = async (data) => {
     }
 };
 
-/**
- * Get notifications for a user
- * @param {number} userId - User ID
- * @param {string} userType - User type (member or agent)
- * @param {Object} query - Query parameters
- * @returns {Object} Response object
- */
+
 export const getUserNotifications = async (userId, userType, query = {}) => {
     try {
         const { 
@@ -102,13 +93,7 @@ export const getUserNotifications = async (userId, userType, query = {}) => {
     }
 };
 
-/**
- * Mark notification as read
- * @param {number} notificationId - Notification ID
- * @param {number} userId - User ID
- * @param {string} userType - User type (member or agent)
- * @returns {Object} Response object
- */
+
 export const markNotificationAsRead = async (notificationId, userId, userType) => {
     try {
         const notification = await Notification.findOne({
@@ -141,12 +126,7 @@ export const markNotificationAsRead = async (notificationId, userId, userType) =
     }
 };
 
-/**
- * Mark all notifications as read
- * @param {number} userId - User ID
- * @param {string} userType - User type (member or agent)
- * @returns {Object} Response object
- */
+
 export const markAllNotificationsAsRead = async (userId, userType) => {
     try {
         await Notification.update(
@@ -175,12 +155,7 @@ export const markAllNotificationsAsRead = async (userId, userType) => {
     }
 };
 
-/**
- * Get unread notification count
- * @param {number} userId - User ID
- * @param {string} userType - User type (member or agent)
- * @returns {Object} Response object
- */
+
 export const getUnreadNotificationCount = async (userId, userType) => {
     try {
         const count = await Notification.count({
@@ -201,6 +176,124 @@ export const getUnreadNotificationCount = async (userId, userType) => {
         console.error('Get unread notification count error:', error);
         return messageHandler(
             'Failed to retrieve unread notification count',
+            false,
+            500
+        );
+    }
+};
+
+
+export const sendBulkNotifications = async (data, userTypes = 'all', specificUserIds = null) => {
+    try {
+        // Validate required fields
+        if (!data.title || !data.message || !data.type) {
+            return messageHandler(
+                'Title, message, and type are required',
+                false,
+                400
+            );
+        }
+
+        // Normalize userTypes to array
+        const targetUserTypes = userTypes === 'all' 
+            ? ['member', 'agent', 'admin'] 
+            : (Array.isArray(userTypes) ? userTypes : [userTypes]);
+        
+        // Validate user types
+        const validUserTypes = ['member', 'agent', 'admin'];
+        const invalidTypes = targetUserTypes.filter(type => !validUserTypes.includes(type));
+        if (invalidTypes.length > 0) {
+            return messageHandler(
+                `Invalid user types: ${invalidTypes.join(', ')}`,
+                false,
+                400
+            );
+        }
+
+        let notificationCount = 0;
+        
+        // If specific user IDs are provided
+        if (specificUserIds && Array.isArray(specificUserIds) && specificUserIds.length > 0) {
+            // Create notifications for specific users
+            for (const user of specificUserIds) {
+                if (!user.userId || !user.userType) {
+                    console.warn('Skipping invalid user entry:', user);
+                    continue;
+                }
+                
+                if (!targetUserTypes.includes(user.userType)) {
+                    console.warn(`Skipping user of type ${user.userType} as it's not in target types`);
+                    continue;
+                }
+                
+                await Notification.create({
+                    userId: user.userId,
+                    userType: user.userType,
+                    type: data.type,
+                    title: data.title,
+                    message: data.message,
+                    link: data.link || null,
+                    priority: data.priority || 0,
+                    metadata: data.metadata || {}
+                });
+                
+                notificationCount++;
+            }
+        } else {
+            // Send to all users of specified types
+            for (const userType of targetUserTypes) {
+                let userIds = [];
+                
+                // Get all user IDs of this type
+                if (userType === 'member') {
+                    const members = await sequelize.query(
+                        'SELECT memberId FROM member_personal_information',
+                        { type: sequelize.QueryTypes.SELECT }
+                    );
+                    userIds = members.map(m => m.memberId);
+                } else if (userType === 'agent') {
+                    const agents = await sequelize.query(
+                        'SELECT agentId FROM agents',
+                        { type: sequelize.QueryTypes.SELECT }
+                    );
+                    userIds = agents.map(a => a.agentId);
+                } else if (userType === 'admin') {
+                    // Use the correct table name 'admin_users' and column 'adminId'
+                    const admins = await sequelize.query(
+                        'SELECT adminId FROM admin_users',
+                        { type: sequelize.QueryTypes.SELECT }
+                    );
+                    userIds = admins.map(a => a.adminId);
+                }
+                
+                // Create notifications for each user
+                for (const userId of userIds) {
+                    await Notification.create({
+                        userId,
+                        userType,
+                        type: data.type,
+                        title: data.title,
+                        message: data.message,
+                        link: data.link || null,
+                        priority: data.priority || 0,
+                        metadata: data.metadata || {}
+                    });
+                    
+                    notificationCount++;
+                }
+            }
+        }
+        
+        return messageHandler(
+            `Successfully sent ${notificationCount} notifications`,
+            true,
+            200,
+            { count: notificationCount }
+        );
+    } catch (error) {
+        console.error('Send bulk notifications error:', error);
+        return messageHandler(
+            error.message || 'Failed to send notifications',
             false,
             500
         );

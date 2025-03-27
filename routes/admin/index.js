@@ -30,6 +30,8 @@ import * as adminDashboardController from '../../controllers/adminDashboardContr
 import * as adminProgramController from '../../controllers/adminProgramController.js';
 import * as adminSchoolController from '../../controllers/adminSchoolController.js';
 import * as adminTransactionController from '../../controllers/adminTransactionController.js';
+import * as adminNotificationController from '../../controllers/adminNotificationController.js';
+import * as adminWithdrawalController from '../../controllers/adminWithdrawalController.js';
 const adminRouter = express.Router();
 
 // Auth routes (public)
@@ -114,5 +116,17 @@ adminRouter.post('/schools/import', asyncHandler(adminSchoolController.importSch
 adminRouter.get('/transactions', asyncHandler(adminTransactionController.getAllTransactions));
 adminRouter.get('/transactions/:transactionType/:transactionId', asyncHandler(adminTransactionController.getTransactionById));
 adminRouter.get('/transactions/export', asyncHandler(adminTransactionController.exportTransactions));
+
+//notification routes
+
+adminRouter.post('/notifications/send', asyncHandler(adminNotificationController.sendNotifications));
+adminRouter.get('/notifications', asyncHandler(adminNotificationController.getSentNotifications));
+adminRouter.delete('/notifications/:notificationId', asyncHandler(adminNotificationController.deleteNotification));
+
+// Withdrawal routes
+adminRouter.get('/withdrawals', asyncHandler(adminWithdrawalController.getAllWithdrawals));
+adminRouter.get('/withdrawals/stats', asyncHandler(adminWithdrawalController.getWithdrawalStats));
+adminRouter.get('/withdrawals/:withdrawalId', asyncHandler(adminWithdrawalController.getWithdrawalById));
+adminRouter.put('/withdrawals/:withdrawalId/process', asyncHandler(adminWithdrawalController.processWithdrawal));
 
 export default adminRouter; 
