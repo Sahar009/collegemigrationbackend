@@ -10,6 +10,7 @@ import { messageHandler } from '../utils/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
 import { sendEmail } from '../utils/sendEmail.js';
+import { createNotification } from './notificationService.js';
 
 // Get all applications with filtering and pagination
 export const getAllApplicationsService = async (query) => {
@@ -341,6 +342,60 @@ export const updateApplicationStatusService = async (applicationId, applicationT
         // Send email notification if status has changed
         if (updateData.applicationStatus && oldStatus !== updateData.applicationStatus) {
             await sendStatusUpdateEmail(application, userId, userType);
+        }
+        
+        // Send notification to user about status change
+        if (updateData.applicationStatus && oldStatus !== updateData.applicationStatus) {
+            // Create status message based on application status
+            let statusMessage;
+            let title;
+            
+            switch (updateData.applicationStatus) {
+                case 'pending':
+                    title = 'Application Pending';
+                    statusMessage = 'Your application is pending review by our team.';
+                    break;
+                case 'in_review':
+                    title = 'Application In Review';
+                    statusMessage = 'Your application is currently under review by our team.';
+                    break;
+                case 'approved':
+                    title = 'Application Approved!';
+                    statusMessage = 'Congratulations! Your application has been approved.';
+                    break;
+                case 'rejected':
+                    title = 'Application Declined';
+                    statusMessage = 'We regret to inform you that your application has been declined.';
+                    break;
+                case 'on_hold':
+                    title = 'Application On Hold';
+                    statusMessage = 'Your application has been placed on hold. We may need additional information.';
+                    break;
+                case 'submitted_to_school':
+                    title = 'Application Submitted to School';
+                    statusMessage = 'Your application has been submitted to the school. We will update you on their response.';
+                    break;
+                default:
+                    title = 'Application Status Updated';
+                    statusMessage = `Your application status has been updated to ${updateData.applicationStatus}.`;
+            }
+            
+            // Create notification
+            await createNotification({
+                userId,
+                userType,
+                type: 'application',
+                title,
+                message: statusMessage,
+                link: `/${userType}/applications/${applicationId}`,
+                priority: 2,
+                metadata: {
+                    applicationId,
+                    applicationType,
+                    oldStatus,
+                    newStatus: updateData.applicationStatus
+                }
+            });
         }
         
         return messageHandler(

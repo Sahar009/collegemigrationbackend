@@ -1,5 +1,5 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+import { DataTypes } from 'sequelize';
+import sequelize from '../database/db.js';
 
 const Notification = sequelize.define('Notification', {
     id: {
@@ -7,25 +7,33 @@ const Notification = sequelize.define('Notification', {
         primaryKey: true,
         autoIncrement: true
     },
-    memberId: {
+    userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        references: {
-            model: 'member_personal_information',
-            key: 'memberId'
-        }
+        comment: 'ID of the user (member or agent)'
+    },
+    userType: {
+        type: DataTypes.ENUM('member', 'agent'),
+        allowNull: false,
+        comment: 'Type of user receiving the notification'
     },
     type: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
+        comment: 'Notification category (e.g., application, payment, system)'
     },
     message: {
         type: DataTypes.TEXT,
         allowNull: false
     },
+    title: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     link: {
         type: DataTypes.STRING,
-        allowNull: true
+        allowNull: true,
+        comment: 'URL to redirect when notification is clicked'
     },
     status: {
         type: DataTypes.ENUM('read', 'unread'),
@@ -33,15 +41,17 @@ const Notification = sequelize.define('Notification', {
     },
     priority: {
         type: DataTypes.INTEGER,
-        defaultValue: 0
+        defaultValue: 0,
+        comment: 'Higher number means higher priority'
     },
-    createdAt: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+    metadata: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: 'Additional data related to the notification'
     }
 }, {
     tableName: 'notifications',
-    timestamps: false
+    timestamps: true
 });
 
-module.exports = Notification;
+export default Notification;

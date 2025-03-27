@@ -3,6 +3,7 @@ import { UNAUTHORIZED, NOT_FOUND } from '../constants/statusCode.js';
 import { messageHandler } from '../utils/index.js';
 import Admin from '../schema/AdminSchema.js';
 
+
 export const authenticateAdmin = async (req, res, next) => {
     try {
         const authHeader = req.headers['authorization'];
@@ -21,33 +22,48 @@ export const authenticateAdmin = async (req, res, next) => {
 
         jwt.verify(token, process.env.JWT_SECRET, async (err, decodedToken) => {
             if (err) {
+                console.error('JWT verification error:', err);
                 return res.status(UNAUTHORIZED).json(
-                    messageHandler('Unauthorized', false, UNAUTHORIZED)
+                    messageHandler('Unauthorized - Token invalid or expired', false, UNAUTHORIZED)
                 );
             }
 
-            // Check if admin exists
+            console.log('Decoded token:', decodedToken); // Debug log
+            
+            // Check if admin exists - make sure the ID field matches what's in your token
             const admin = await Admin.findByPk(decodedToken.id);
             
-            if (!admin || admin.status !== 'active') {
+            console.log('Found admin:', admin ? 'Yes' : 'No'); // Debug log
+            
+            if (!admin) {
                 return res.status(UNAUTHORIZED).json(
-                    messageHandler('Admin not found or inactive', false, UNAUTHORIZED)
+                    messageHandler('Admin not found with ID: ' + decodedToken.id, false, UNAUTHORIZED)
+                );
+            }
+            
+            if (admin.status !== 'active') {
+                return res.status(UNAUTHORIZED).json(
+                    messageHandler('Admin account is not active', false, UNAUTHORIZED)
                 );
             }
 
-            // Add admin to request object
-            req.admin = {
+            // Add admin info to both req.admin and req.user
+            const adminInfo = {
                 id: admin.adminId,
                 email: admin.email,
                 username: admin.username,
                 role: admin.role
             };
+            
+            req.admin = adminInfo;
+            req.user = adminInfo;
 
             next();
         });
     } catch (err) {
+        console.error('Auth middleware error:', err);
         return res.status(UNAUTHORIZED).json(
-            messageHandler('Server Error', false, UNAUTHORIZED)
+            messageHandler('Server Error in authentication', false, UNAUTHORIZED)
         );
     }
 };
@@ -55,13 +71,16 @@ export const authenticateAdmin = async (req, res, next) => {
 // Middleware to check if admin has required role
 export const requireRole = (roles) => {
     return (req, res, next) => {
-        if (!req.admin) {
+        // Check both req.admin and req.user for compatibility
+        const adminInfo = req.admin || req.user;
+        
+        if (!adminInfo) {
             return res.status(UNAUTHORIZED).json(
                 messageHandler('Authentication required', false, UNAUTHORIZED)
             );
         }
 
-        if (roles.includes(req.admin.role)) {
+        if (roles.includes(adminInfo.role)) {
             next();
         } else {
             return res.status(UNAUTHORIZED).json(
@@ -69,4 +88,4 @@ export const requireRole = (roles) => {
             );
         }
     };
-}; 
+};

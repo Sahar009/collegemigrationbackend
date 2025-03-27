@@ -2,6 +2,14 @@ import { getDashboardMetricsService } from '../service/adminDashboardService.js'
 
 export const getDashboardMetrics = async (req, res) => {
   try {
+    if (!req.user && !req.admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        statusCode: 401
+      });
+    }
+
     const { startDate, endDate } = req.query;
     
     // Validate dates if provided

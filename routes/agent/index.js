@@ -14,6 +14,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import studentRouter from './student.js';
 import applicationRouter from './application.js';
 import paymentRouter from './payment.js';
+import * as notificationController from '../../controllers/notificationController.js';
 
 const agentRouter = express.Router();
 
@@ -89,6 +90,12 @@ agentRouter.get(
 agentRouter.use('/students', studentRouter);
 agentRouter.use('/applications', applicationRouter);
 agentRouter.use('/payments', paymentRouter);
+
+// Add these routes
+agentRouter.get('/notifications', asyncHandler(notificationController.getNotifications));
+agentRouter.get('/notifications/unread-count', asyncHandler(notificationController.getUnreadCount));
+agentRouter.patch('/notifications/:notificationId/read', asyncHandler(notificationController.readNotification));
+agentRouter.patch('/notifications/read-all', asyncHandler(notificationController.readAllNotifications));
 
 // Error handling middleware
 agentRouter.use((err, req, res, next) => {

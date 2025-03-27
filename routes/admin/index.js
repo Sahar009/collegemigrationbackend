@@ -38,7 +38,7 @@ adminRouter.post('/forgot-password', validateForgotPassword, asyncHandler(adminA
 adminRouter.post('/reset-password', validateResetPassword, asyncHandler(adminAuthController.resetPassword));
 
 // Protected routes
-// adminRouter.use(authenticateAdmin);
+adminRouter.use(authenticateAdmin);
 
 // Admin profile routes
 adminRouter.get('/profile', asyncHandler(adminAuthController.getProfile));

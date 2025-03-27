@@ -1,6 +1,7 @@
 import AgentTransaction from '../schema/AgentTransactionSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import { createNotification } from './notificationService.js';
 
 export const createAgentTransaction = async (data) => {
     try {
@@ -16,6 +17,22 @@ export const createAgentTransaction = async (data) => {
             status: 'pending',
             paymentReference: `TXN-${Date.now()}-${Math.random().toString(36).substring(7)}`,
             metadata: data.metadata || {}
+        });
+
+        // Send notification to agent about the new transaction
+        await createNotification({
+            userId: data.memberId,
+            userType: 'member',
+            type: 'payment',
+            title: 'New Transaction Created',
+            message: `A new transaction of ${data.amount} ${data.currency} has been created for your application.`,
+            link: `/member/transactions/${transaction.transactionId}`,
+            priority: 1,
+            metadata: {
+                transactionId: transaction.transactionId,
+                amount: data.amount,
+                currency: data.currency
+            }
         });
 
         return messageHandler(

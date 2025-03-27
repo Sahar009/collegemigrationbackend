@@ -41,10 +41,10 @@ export const generateToken = (payload, expiresIn = '1d') => {
 }
 export const generateAdminToken = (adminData, expiresIn = '1d') => {
   const payload = {
-    id: adminData.id,
+    id: adminData.adminId,
     username: adminData.username,
     email: adminData.email,
-    role: 'admin',  
+    role: adminData.role,  
   };
 
   return jwt.sign(payload, SECRET_KEY, { expiresIn });
