@@ -3,6 +3,53 @@ import Wallet from '../schema/WalletSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { createNotification } from '../service/notificationService.js';
 import { Op } from 'sequelize';
+import jwt from 'jsonwebtoken';
+
+/**
+ * Helper function to extract user info from request
+ * @param {Object} req - Request object
+ * @returns {Object} User info object with userId and userType
+ */
+const extractUserInfo = (req) => {
+    let userId, userType;
+    
+    // First try to get user info from req.user
+    if (req.user) {
+        if (req.user.role === 'admin') {
+            userId = req.user.id || req.user.adminId;
+            userType = 'admin';
+        } else if (req.user.type === 'agent' || req.user.agentId) {
+            userId = req.user.id || req.user.agentId;
+            userType = 'agent';
+        } else {
+            userId = req.user.id || req.user.memberId;
+            userType = 'member';
+        }
+        
+        return { userId, userType };
+    }
+    
+    // If req.user is not available, try to extract from query params or token
+    userType = req.query.userType || req.body.userType || 'member';
+    
+    // Try to extract userId from token
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (token) {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            userId = decoded.id || decoded.memberId || decoded.agentId;
+        }
+    } catch (error) {
+        console.error('Token verification error:', error);
+        throw new Error('Unauthorized: Invalid token');
+    }
+    
+    if (!userId) {
+        throw new Error('User ID is required');
+    }
+    
+    return { userId, userType };
+};
 
 /**
  * Get user wallet balance
@@ -12,21 +59,10 @@ import { Op } from 'sequelize';
  */
 export const getWalletBalance = async (req, res) => {
     try {
-        let userId, userType;
+        // Extract user info using the helper function
+        let { userId, userType } = extractUserInfo(req);
         
-        if (req.user.agentId) {
-            userId = req.user.agentId;
-            userType = 'Agent';
-        } else if (req.user.memberId) {
-            userId = req.user.memberId;
-            userType = 'Member';
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: 'Unable to determine user type',
-                statusCode: 400
-            });
-        }
+        console.log('User requesting wallet balance:', { userId, userType });
         
         // Get or create wallet
         let wallet = await Wallet.findOne({
@@ -34,12 +70,11 @@ export const getWalletBalance = async (req, res) => {
         });
         
         if (!wallet) {
+            console.log('Creating new wallet for user:', { userId, userType });
             wallet = await Wallet.create({
                 userId,
                 userType,
-                balance: 0.00,
-                totalEarned: 0.00,
-                totalWithdrawn: 0.00
+                balance: 0.00
             });
         }
         
@@ -50,14 +85,23 @@ export const getWalletBalance = async (req, res) => {
                 200,
                 {
                     balance: parseFloat(wallet.balance),
-                    totalEarned: parseFloat(wallet.totalEarned),
-                    totalWithdrawn: parseFloat(wallet.totalWithdrawn),
-                    currency: wallet.currency || 'USD'
+                    userId,
+                    userType
                 }
             )
         );
     } catch (error) {
         console.error('Get wallet balance error:', error);
+        
+        // Handle authentication errors
+        if (error.message.includes('Unauthorized') || error.message.includes('Invalid token')) {
+            return res.status(401).json({
+                success: false,
+                message: error.message,
+                statusCode: 401
+            });
+        }
+        
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to retrieve wallet balance',
@@ -74,101 +118,90 @@ export const getWalletBalance = async (req, res) => {
  */
 export const createWithdrawal = async (req, res) => {
     try {
-        let userId, userType;
+        // Extract user info using the helper function
+        let { userId, userType } = extractUserInfo(req);
         
-        if (req.user.agentId) {
-            userId = req.user.agentId;
-            userType = 'Agent';
-        } else if (req.user.memberId) {
-            userId = req.user.memberId;
-            userType = 'Member';
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: 'Only members and agents can request withdrawals',
-                statusCode: 400
-            });
-        }
+        // Convert to proper case for Withdrawal schema (Member/Agent)
+        const withdrawalUserType = userType === 'member' ? 'Member' : 'Agent';
         
         const { accountName, accountNumber, bankName, amount } = req.body;
         
         // Validate required fields
         if (!accountName || !accountNumber || !bankName || !amount) {
-            return res.status(400).json(
-                messageHandler(
-                    'All fields are required',
-                    false,
-                    400
-                )
-            );
+            return res.status(400).json({
+                success: false,
+                message: 'All fields are required',
+                statusCode: 400
+            });
         }
         
-        // Get wallet
+        // Check if amount is valid
+        if (isNaN(amount) || parseFloat(amount) <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid withdrawal amount',
+                statusCode: 400
+            });
+        }
+        
+        // Get wallet - note we use lowercase userType for wallet
         const wallet = await Wallet.findOne({
             where: { userId, userType }
         });
         
+        // Check if wallet exists and has sufficient balance
         if (!wallet) {
-            return res.status(404).json(
-                messageHandler(
-                    'Wallet not found',
-                    false,
-                    404
-                )
-            );
+            return res.status(400).json({
+                success: false,
+                message: 'Wallet not found',
+                statusCode: 400
+            });
         }
         
-        // Check if sufficient balance
         if (parseFloat(wallet.balance) < parseFloat(amount)) {
-            return res.status(400).json(
-                messageHandler(
-                    'Insufficient balance',
-                    false,
-                    400
-                )
-            );
+            return res.status(400).json({
+                success: false,
+                message: 'Insufficient balance',
+                statusCode: 400
+            });
         }
         
         // Check if there's a pending withdrawal
         const pendingWithdrawal = await Withdrawal.findOne({
             where: {
                 userId,
-                userType,
+                userType: withdrawalUserType,
                 status: 'Pending'
             }
         });
         
         if (pendingWithdrawal) {
-            return res.status(400).json(
-                messageHandler(
-                    'You already have a pending withdrawal request',
-                    false,
-                    400
-                )
-            );
+            return res.status(400).json({
+                success: false,
+                message: 'You already have a pending withdrawal request',
+                statusCode: 400
+            });
         }
         
         // Create withdrawal request
         const withdrawal = await Withdrawal.create({
             userId,
-            userType,
+            userType: withdrawalUserType,
             accountName,
             accountNumber,
             bankName,
             amount,
-            status: 'Pending',
-            createdAt: new Date(),
-            updatedAt: new Date()
+            status: 'Pending'
         });
         
-        // Notify admin
+        // Create notification for admin
         await createNotification({
-            userId: 1, // Assuming admin ID is 1
-            userType: 'admin',
-            type: 'withdrawal',
             title: 'New Withdrawal Request',
-            message: `A new withdrawal request of $${amount} has been submitted by a ${userType}.`,
-            priority: 2
+            message: `A new withdrawal request of ${amount} has been submitted by ${withdrawalUserType} #${userId}`,
+            type: 'withdrawal',
+            userType: 'admin',
+            priority: 2,
+            link: `/admin/withdrawals/${withdrawal.withdrawalId}`
         });
         
         return res.status(201).json(
@@ -181,6 +214,16 @@ export const createWithdrawal = async (req, res) => {
         );
     } catch (error) {
         console.error('Create withdrawal error:', error);
+        
+        // Handle authentication errors
+        if (error.message.includes('Unauthorized') || error.message.includes('Invalid token')) {
+            return res.status(401).json({
+                success: false,
+                message: error.message,
+                statusCode: 401
+            });
+        }
+        
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to submit withdrawal request',
@@ -197,28 +240,18 @@ export const createWithdrawal = async (req, res) => {
  */
 export const getUserWithdrawals = async (req, res) => {
     try {
-        let userId, userType;
+        // Extract user info using the helper function
+        let { userId, userType } = extractUserInfo(req);
         
-        if (req.user.agentId) {
-            userId = req.user.agentId;
-            userType = 'Agent';
-        } else if (req.user.memberId) {
-            userId = req.user.memberId;
-            userType = 'Member';
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: 'Unable to determine user type',
-                statusCode: 400
-            });
-        }
+        // Convert to proper case for Withdrawal schema (Member/Agent)
+        const withdrawalUserType = userType === 'member' ? 'Member' : 'Agent';
         
         const { page = 1, limit = 10, status } = req.query;
         
         // Build where conditions
         const whereConditions = {
             userId,
-            userType
+            userType: withdrawalUserType
         };
         
         if (status) {
@@ -253,6 +286,16 @@ export const getUserWithdrawals = async (req, res) => {
         );
     } catch (error) {
         console.error('Get user withdrawals error:', error);
+        
+        // Handle authentication errors
+        if (error.message.includes('Unauthorized') || error.message.includes('Invalid token')) {
+            return res.status(401).json({
+                success: false,
+                message: error.message,
+                statusCode: 401
+            });
+        }
+        
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to retrieve withdrawals',

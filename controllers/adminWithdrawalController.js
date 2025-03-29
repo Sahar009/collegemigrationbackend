@@ -244,11 +244,11 @@ export const processWithdrawal = async (req, res) => {
         
         // If approved, debit the wallet
         if (status === 'Approved') {
-            // Get user wallet
+            // Get user wallet - convert userType to lowercase for wallet lookup
             const wallet = await Wallet.findOne({
                 where: {
                     userId: withdrawal.userId,
-                    userType: withdrawal.userType
+                    userType: withdrawal.userType.toLowerCase() // Convert to lowercase
                 },
                 transaction: t
             });
@@ -278,13 +278,20 @@ export const processWithdrawal = async (req, res) => {
             
             // Update wallet balance
             const newBalance = parseFloat(wallet.balance) - parseFloat(withdrawal.amount);
-            const newTotalWithdrawn = parseFloat(wallet.totalWithdrawn) + parseFloat(withdrawal.amount);
             
-            await wallet.update({
+            // Check if totalWithdrawn field exists in wallet schema
+            let updateData = {
                 balance: newBalance,
-                totalWithdrawn: newTotalWithdrawn,
                 updatedAt: new Date()
-            }, { transaction: t });
+            };
+            
+            // If totalWithdrawn field exists, update it
+            if ('totalWithdrawn' in wallet.dataValues) {
+                const newTotalWithdrawn = parseFloat(wallet.totalWithdrawn || 0) + parseFloat(withdrawal.amount);
+                updateData.totalWithdrawn = newTotalWithdrawn;
+            }
+            
+            await wallet.update(updateData, { transaction: t });
             
             // Create wallet transaction
             await WalletTransaction.create({

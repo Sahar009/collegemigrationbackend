@@ -136,12 +136,7 @@ export const onboardingValidator = {
             errorMessage: 'ID scan front must be a valid URL'
         }
     },
-    idScanBack: {
-        optional: true,
-        isURL: {
-            errorMessage: 'ID scan back must be a valid URL'
-        }
-    },
+ 
     nationality: {
         optional: true,
         trim: true

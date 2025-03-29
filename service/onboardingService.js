@@ -62,7 +62,7 @@ export const updateMemberProfileService = async (memberId, data, callback) => {
             // Handle file paths
             photo: data.photo || member.photo,
             idScanFront: data.idScanFront || member.idScanFront,
-            idScanBack: data.idScanBack || member.idScanBack
+            // idScanBack: data.idScanBack || member.idScanBack
         };
 
         // Remove undefined values
