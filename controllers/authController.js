@@ -10,48 +10,18 @@ import {
 import { sendEmail } from '../utils/sendEmail.js';
 
 export const registerController = async (req, res) => {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({
-            success: false,
-            message: 'Validation error',
-            errors: errors.array()
-        });
-    }
-
-    // If validation passes, proceed with registration
     try {
-        const userResponse = await registerService(req.body);
-
-        // Send welcome email
-        const emailResult = await sendEmail({
-            to: userResponse.email,
-            subject: 'Welcome to College Migration',
-            template: 'welcome',
-            context: {
-                name: userResponse.firstname
-            }
+        const result = await registerService(req.body, (response) => {
+            // This is the callback function
+            return response;
         });
-
-        if (!emailResult.success) {
-            // Log the error but don't fail the registration
-            console.warn('Welcome email failed:', emailResult.error);
-        }
-
-        // Continue with registration response
-        return res.status(201).json({
-            success: true,
-            message: 'Registration successful',
-            data: {
-                user: userResponse,
-                emailSent: emailResult.success
-            }
-        });
+        
+        return res.status(result.statusCode).json(result);
     } catch (error) {
+        console.error('Registration controller error:', error);
         return res.status(500).json({
             success: false,
-            message: 'Registration failed',
+            message: "Internal server error",
             error: error.message
         });
     }

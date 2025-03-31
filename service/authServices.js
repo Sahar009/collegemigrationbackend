@@ -24,9 +24,19 @@ const generateResetCode = () => {
 };
 
 export const registerService = async (data, callback) => {
+    // Validate callback is a function
+    if (typeof callback !== 'function') {
+        throw new Error('Callback must be a function');
+    }
+
     const t = await sequelize.transaction();
     
     try {
+        console.log('Registration attempt - Incoming data:', {
+            ...data,
+            password: '***hidden***'
+        });
+
         const {
             firstname,
             lastname,
@@ -38,12 +48,14 @@ export const registerService = async (data, callback) => {
         } = data;
 
         // Check if email exists
+        console.log('Starting email existence check...');
         const existingMember = await Member.findOne({ 
             where: { email },
             transaction: t 
         });
 
         if (existingMember) {
+            console.log('Email already exists:', email);
             await t.rollback();
             return callback(
                 messageHandler("Email already exists", false, BAD_REQUEST)
@@ -51,6 +63,7 @@ export const registerService = async (data, callback) => {
         }
 
         // Create new member
+        console.log('Creating new member...');
         const hashedPassword = await hashPassword(password);
         const newMember = await Member.create({
             firstname,
@@ -60,8 +73,12 @@ export const registerService = async (data, callback) => {
             memberStatus: 'PENDING'
         }, { transaction: t });
 
+        console.log('Member created:', newMember.memberId);
+
         // Handle referral if provided
         if (ref && refId && refType) {
+            console.log('Processing referral:', { ref, refId, refType });
+            
             // Verify referrer exists
             const referrerModel = refType === 'Agent' ? Agent : Member;
             const referrer = await referrerModel.findOne({
@@ -73,6 +90,7 @@ export const registerService = async (data, callback) => {
             });
 
             if (!referrer) {
+                console.log('Invalid referral code:', ref);
                 await t.rollback();
                 return callback(
                     messageHandler("Invalid referral code", false, BAD_REQUEST)
@@ -88,23 +106,9 @@ export const registerService = async (data, callback) => {
                 status: 'unpaid',
                 statusDate: new Date()
             }, { transaction: t });
+            
+            console.log('Referral processed successfully');
         }
-
-        // Send welcome email
-        await sendEmail({
-            to: email,
-            subject: 'Welcome to College Migration',
-            template: 'welcome',
-            context: {
-                firstname,
-                year: new Date().getFullYear(),
-                socialLinks: {
-                    Facebook: 'https://facebook.com/collegemigration',
-                    Twitter: 'https://twitter.com/collegemigration',
-                    LinkedIn: 'https://linkedin.com/company/collegemigration'
-                }
-            }
-        });
 
         // Generate token
         const tokenPayload = {
@@ -113,7 +117,32 @@ export const registerService = async (data, callback) => {
         };
         const token = generateToken(tokenPayload);
 
+        // Commit transaction before sending email
         await t.commit();
+        console.log('Transaction committed successfully');
+
+        // Try to send welcome email
+        try {
+            console.log('Sending welcome email...');
+            await sendEmail({
+                to: email,
+                subject: 'Welcome to College Migration',
+                template: 'welcome',
+                context: {
+                    firstname,
+                    year: new Date().getFullYear(),
+                    socialLinks: {
+                        Facebook: 'https://facebook.com/collegemigration',
+                        Twitter: 'https://twitter.com/collegemigration',
+                        LinkedIn: 'https://linkedin.com/company/collegemigration'
+                    }
+                }
+            });
+            console.log('Welcome email sent successfully');
+        } catch (emailError) {
+            console.warn('Welcome email error:', emailError);
+            // Continue with registration despite email failure
+        }
 
         return callback(
             messageHandler("Registration successful", true, SUCCESS, {
@@ -129,10 +158,21 @@ export const registerService = async (data, callback) => {
         );
 
     } catch (error) {
+        console.error('Registration failed:', {
+            error: error.message,
+            stack: error.stack,
+            details: error,
+            sql: error.sql, // For SQL errors
+            parameters: error.parameters // For SQL errors
+        });
+
         await t.rollback();
-        console.error('Registration error:', error);
         return callback(
-            messageHandler(MESSAGES.AUTH.REGISTRATION_FAILED, false, BAD_REQUEST)
+            messageHandler(
+                error.message || "Registration failed", 
+                false, 
+                BAD_REQUEST
+            )
         );
     }
 };
