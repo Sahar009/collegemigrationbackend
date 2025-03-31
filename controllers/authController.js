@@ -7,6 +7,7 @@ import {
     updatePasswordService,
     resendResetCodeService
 } from '../service/authServices.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 export const registerController = async (req, res) => {
     // Check for validation errors
@@ -20,13 +21,40 @@ export const registerController = async (req, res) => {
     }
 
     // If validation passes, proceed with registration
-    await registerService(req.body, (response) => {
-        return res.status(response.statusCode).json({
-            success: response.success,
-            message: response.message,
-            data: response.data
+    try {
+        const userResponse = await registerService(req.body);
+
+        // Send welcome email
+        const emailResult = await sendEmail({
+            to: userResponse.email,
+            subject: 'Welcome to College Migration',
+            template: 'welcome',
+            context: {
+                name: userResponse.firstname
+            }
         });
-    });
+
+        if (!emailResult.success) {
+            // Log the error but don't fail the registration
+            console.warn('Welcome email failed:', emailResult.error);
+        }
+
+        // Continue with registration response
+        return res.status(201).json({
+            success: true,
+            message: 'Registration successful',
+            data: {
+                user: userResponse,
+                emailSent: emailResult.success
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Registration failed',
+            error: error.message
+        });
+    }
 };
 
 export const loginController = async (req, res) => {
