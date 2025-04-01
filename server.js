@@ -8,6 +8,9 @@ import { connectToDB } from './database/db.js'
 import errorMiddleware from './middlewares/errorMiddleware.js'
 import router from './routes/index.js'
 import { cloudinary } from './config/cloudinaryConfig.js';
+import { setupHealthCheck, initCronJobs } from './utils/cronJobs.js';
+
+
 const app = express()
 const port = process.env.PORT || 8000
 
@@ -39,6 +42,12 @@ app.all('*', (req, res) => {
       message: `Oops! Request not found. Cannot ${req.method} ${req.originalUrl}`,
     });
   });
+
+  // Setup health check endpoint
+setupHealthCheck(app);
+
+// Initialize cron jobs
+initCronJobs();
 
 // Connect to database before starting server
 const startServer = async () => {
