@@ -156,23 +156,28 @@ export const getReferralsService = async ({ referrerId, referralType, status, pa
     try {
         const whereClause = {
             referrerId,
-            referralType
+            referrerType: referralType
         };
 
         if (status !== 'all') {
             whereClause.status = status;
         }
 
+        // Set up include options with the updated association names
+        const includeOptions = [{
+            model: Member,
+            as: 'referredMember',
+            attributes: ['firstname', 'lastname', 'email'],
+            include: [{
+                model: Application,
+                as: 'memberApplications',  // Updated to match the new association name
+                attributes: ['applicationId', 'paymentStatus']
+            }]
+        }];
+
         const { count, rows: referrals } = await Referral.findAndCountAll({
             where: whereClause,
-            include: [{
-                model: Member,
-                attributes: ['firstname', 'lastname', 'email'],
-                include: [{
-                    model: Application,
-                    attributes: ['applicationId', 'paymentStatus']
-                }]
-            }],
+            include: includeOptions,
             order: [['createdAt', 'DESC']],
             limit,
             offset: (page - 1) * limit
@@ -189,6 +194,11 @@ export const getReferralsService = async ({ referrerId, referralType, status, pa
         });
 
     } catch (error) {
+        console.error('Referral service error:', {
+            message: error.message,
+            stack: error.stack,
+            details: error
+        });
         throw error;
     }
 };

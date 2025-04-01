@@ -48,4 +48,7 @@ const Referral = sequelize.define('Referral', {
     underscored: false
 });
 
+// Note: We're not defining associations here anymore
+// They will be defined in associations.js to keep everything centralized
+
 export default Referral; 

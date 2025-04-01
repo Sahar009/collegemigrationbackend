@@ -15,7 +15,7 @@ export const setupAssociations = () => {
     Application.belongsTo(Member, { 
         foreignKey: 'memberId',
         targetKey: 'memberId',
-        as: 'member'
+        as: 'applicationMember'
     });
 
     Application.belongsTo(Program, {
@@ -33,7 +33,8 @@ export const setupAssociations = () => {
     // ApplicationDocument associations
     ApplicationDocument.belongsTo(Member, { 
         foreignKey: 'memberId',
-        targetKey: 'memberId'
+        targetKey: 'memberId',
+        as: 'documentMember'
     });
 
     ApplicationDocument.belongsTo(Application, {
@@ -113,13 +114,13 @@ export const setupAssociations = () => {
     // Member - Referral associations (updated with unique aliases)
     Member.hasMany(Referral, {
         foreignKey: 'memberId',
-        as: 'memberReferrals'  // Changed from 'referrals' to 'memberReferrals'
+        as: 'memberReferrals'
     });
 
     // Agent - Referral associations
     Agent.hasMany(Referral, {
         foreignKey: 'referrerId',
-        as: 'agentReferrals',  // Changed from 'referrals' to 'agentReferrals'
+        as: 'agentReferrals',
         scope: {
             referrerType: 'Agent'
         }
@@ -129,13 +130,13 @@ export const setupAssociations = () => {
     Referral.belongsTo(Member, {
         foreignKey: 'memberId',
         targetKey: 'memberId',
-        as: 'referredMember'  // Added meaningful alias
+        as: 'referredMember'
     });
 
     Referral.belongsTo(Agent, {
         foreignKey: 'referrerId',
         targetKey: 'agentId',
-        as: 'referringAgent',  // Added meaningful alias
+        as: 'referringAgent',
         scope: {
             referrerType: 'Agent'
         }
@@ -144,10 +145,16 @@ export const setupAssociations = () => {
     Referral.belongsTo(Member, {
         foreignKey: 'referrerId',
         targetKey: 'memberId',
-        as: 'referringMember',  // Added meaningful alias
+        as: 'referringMember',
         scope: {
             referrerType: 'Member'
         }
+    });
+
+    // Member-Application association
+    Member.hasMany(Application, {
+        foreignKey: 'memberId',
+        as: 'memberApplications'
     });
 };
 

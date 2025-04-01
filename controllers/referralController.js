@@ -1,4 +1,3 @@
-
 import { createReferralService, getReferralsService, getReferralStatsService, updateReferralStatusService } from '../service/referralService.js';
 import { messageHandler } from '../utils/index.js';
 import referralValidator from '../validations/referralValidator.js';
@@ -31,7 +30,9 @@ export const getReferrals = async (req, res) => {
     try {
         const { status = 'all', page = 1, limit = 10 } = req.query;
         const referrerId = req.user.id;
-        const referralType = req.user.role;
+        
+        // Convert to proper case (first letter uppercase)
+        const referralType = req.user.role === 'agent' ? 'Agent' : 'Member';
 
         const result = await getReferralsService({
             referrerId,
