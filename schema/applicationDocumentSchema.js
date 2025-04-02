@@ -7,9 +7,17 @@ export const ApplicationDocument = sequelize.define('ApplicationDocument', {
         primaryKey: true,
         autoIncrement: true
     },
-    agentId: {
+    memberId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        references: {
+            model: 'member_personal_information',
+            key: 'memberId'
+        }
+    },
+    agentId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
         references: {
             model: 'member_agents',
             key: 'agentId'

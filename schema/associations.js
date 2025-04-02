@@ -24,23 +24,16 @@ export const setupAssociations = () => {
         as: 'program'
     });
 
-    Application.hasOne(ApplicationDocument, {
+    Application.hasMany(ApplicationDocument, {
         foreignKey: 'memberId',
         sourceKey: 'memberId',
-        as: 'applicationDocument'
-    });
-
-    // ApplicationDocument associations
-    ApplicationDocument.belongsTo(Member, { 
-        foreignKey: 'memberId',
-        targetKey: 'memberId',
-        as: 'documentMember'
+        as: 'applicationDocuments'
     });
 
     ApplicationDocument.belongsTo(Application, {
         foreignKey: 'memberId',
         targetKey: 'memberId',
-        as: 'application'
+        as: 'parentApplication'
     });
 
     // Program associations
@@ -156,6 +149,7 @@ export const setupAssociations = () => {
         foreignKey: 'memberId',
         as: 'memberApplications'
     });
+    
 };
 
 // Make sure we're exporting the function properly

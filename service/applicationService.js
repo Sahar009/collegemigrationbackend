@@ -212,7 +212,7 @@ export const getApplicationStatusService = async (memberId, applicationId, callb
                 },
                 {
                     model: Member,
-                    as: 'member',
+                    as: 'applicationMember',
                     attributes: [
                         'memberId', 'firstname', 'lastname', 'othernames', 
                         'email', 'phone', 'dob', 'gender', 'nationality',
@@ -286,12 +286,12 @@ export const getAllApplicationsService = async (memberId, callback) => {
             include: [
                 {
                     model: ApplicationDocument,
-                    as: 'applicationDocument',
+                    as: 'applicationDocuments',
                     attributes: ['documentId', 'documentType', 'documentPath', 'uploadDate', 'status']
                 },
                 {
                     model: Member,
-                    as: 'member',
+                    as: 'applicationMember',
                     attributes: [
                         'memberId', 'firstname', 'lastname', 'othernames', 
                         'email', 'phone', 'dob', 'gender', 'nationality',
