@@ -150,6 +150,22 @@ export const setupAssociations = () => {
         as: 'memberApplications'
     });
     
+    // Enhanced Agent associations for metrics
+    Agent.hasMany(AgentApplication, {
+        foreignKey: 'agentId',
+        as: 'applications'
+    });
+    
+    Agent.hasMany(AgentTransaction, {
+        foreignKey: 'agentId',
+        as: 'transactions'
+    });
+    
+    // Add direct association between Agent and AgentTransaction
+    AgentTransaction.belongsTo(Agent, {
+        foreignKey: 'agentId',
+        as: 'agent'
+    });
 };
 
 // Make sure we're exporting the function properly

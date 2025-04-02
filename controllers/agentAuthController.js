@@ -69,9 +69,15 @@ export const verifyEmail = async (req, res) => {
 export const changePassword = async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
-        const result = await agentAuthService.changePassword(req.user.id, currentPassword, newPassword);
+
+        
+        // The issue might be here - check if it's agentId instead of id
+        const agentId = req.user.agentId || req.user.id;
+        
+        const result = await agentAuthService.changePassword(agentId, currentPassword, newPassword);
         return res.status(SUCCESS).json(result);
     } catch (error) {
+        console.error('Change password error:', error);
         return res.status(BAD_REQUEST).json({
             success: false,
             message: error.message

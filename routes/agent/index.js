@@ -16,7 +16,7 @@ import applicationRouter from './application.js';
 import paymentRouter from './payment.js';
 import * as notificationController from '../../controllers/notificationController.js';
 import * as withdrawalController from '../../controllers/withdrawalController.js';
-
+import * as agentMetricsController from '../../controllers/agentMetricsController.js';
 const agentRouter = express.Router();
 
 // Public routes with error handling
@@ -104,6 +104,7 @@ agentRouter.get('/wallet/balance', asyncHandler(withdrawalController.getWalletBa
 agentRouter.get('/withdrawals', asyncHandler(withdrawalController.getUserWithdrawals));
 agentRouter.post('/withdrawals', asyncHandler(withdrawalController.createWithdrawal));
 
+agentRouter.get('/metrics', asyncHandler(agentMetricsController.getAgentMetrics));
 // Error handling middleware
 agentRouter.use((err, req, res, next) => {
     console.error('Route Error:', err);

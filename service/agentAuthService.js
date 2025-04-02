@@ -297,7 +297,13 @@ export const verifyEmail = async (token) => {
 // Change Password
 export const changePassword = async (agentId, currentPassword, newPassword) => {
     try {
+        
+        if (!agentId) {
+            throw new Error('Agent ID is required');
+        }
+        
         const agent = await Agent.findByPk(agentId);
+        
         if (!agent) {
             throw new Error('Agent not found');
         }
@@ -315,6 +321,7 @@ export const changePassword = async (agentId, currentPassword, newPassword) => {
             message: 'Password changed successfully'
         };
     } catch (error) {
+        console.error('Password change service error:', error);
         throw error;
     }
 };
