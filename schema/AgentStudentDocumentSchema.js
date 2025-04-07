@@ -27,6 +27,22 @@ const AgentStudentDocument = sequelize.define('AgentStudentDocument', {
         type: DataTypes.ENUM('pending', 'approved', 'rejected'),
         defaultValue: 'pending'
     },
+    adminComment: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    reviewedBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'admins',
+            key: 'adminId'
+        }
+    },
+    reviewedAt: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
     uploadDate: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

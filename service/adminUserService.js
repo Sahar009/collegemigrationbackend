@@ -479,4 +479,149 @@ export const resetUserPasswordService = async (userId, userType, newPassword) =>
             500
         );
     }
+};
+
+// Add this new service function
+export const updateUserDetailsService = async (userId, userType, updateData) => {
+    try {
+        // Remove password-related fields from update data
+        delete updateData.password;
+        delete updateData.confirmPassword;
+        delete updateData.newPassword;
+        delete updateData.currentPassword;
+
+        let user;
+        
+        if (userType === 'member') {
+            user = await Member.findByPk(userId);
+            if (!user) {
+                return messageHandler('Member not found', false, 404);
+            }
+            
+            // Filter allowed fields for member updates
+            const allowedFields = [
+                'firstname', 'lastname', 'email', 'phone', 
+                'address', 'country', 'dateOfBirth', 'memberStatus'
+            ];
+            
+            const filteredUpdate = Object.keys(updateData)
+                .filter(key => allowedFields.includes(key))
+                .reduce((obj, key) => {
+                    obj[key] = updateData[key];
+                    return obj;
+                }, {});
+
+            await user.update(filteredUpdate);
+            
+        } else if (userType === 'agent') {
+            user = await Agent.findByPk(userId);
+            if (!user) {
+                return messageHandler('Agent not found', false, 404);
+            }
+            
+            // Filter allowed fields for agent updates
+            const allowedFields = [
+                'companyName', 'contactPerson', 'email', 'phone',
+                'address', 'country', 'commissionRate', 'status'
+            ];
+            
+            const filteredUpdate = Object.keys(updateData)
+                .filter(key => allowedFields.includes(key))
+                .reduce((obj, key) => {
+                    obj[key] = updateData[key];
+                    return obj;
+                }, {});
+
+            await user.update(filteredUpdate);
+            
+        } else {
+            return messageHandler('Invalid user type', false, 400);
+        }
+
+        return messageHandler(
+            'User details updated successfully',
+            true,
+            200,
+            user
+        );
+    } catch (error) {
+        console.error('Update user details error:', error);
+        return messageHandler(
+            error.message || 'Failed to update user details',
+            false,
+            500
+        );
+    }
+}; 
+
+// Update user document
+export const updateUserDocumentService = async (documentId, documentType, updateData, adminId) => {
+    try {
+        let documentModel;
+        let document;
+        
+        // Determine which document type to update
+        switch(documentType.toLowerCase()) {
+            case 'application':
+                documentModel = ApplicationDocument;
+                break;
+            case 'agent-student':
+                documentModel = AgentStudentDocument;
+                break;
+            default:
+                return messageHandler('Invalid document type', false, 400);
+        }
+        
+        // Find the document
+        document = await documentModel.findByPk(documentId);
+        
+        if (!document) {
+            return messageHandler('Document not found', false, 404);
+        }
+        
+        // Prepare allowed updates
+        const allowedUpdates = {
+            status: ['pending', 'approved', 'rejected'],
+            adminComment: updateData.adminComment || null,
+            reviewedBy: adminId,
+            reviewedAt: new Date()
+        };
+        
+        // Validate status transition
+        const currentStatus = document.status;
+        const newStatus = updateData.status || currentStatus;
+        
+        if (newStatus !== currentStatus) {
+            if (!allowedUpdates.status.includes(newStatus)) {
+                return messageHandler('Invalid document status', false, 400);
+            }
+            
+            // Add status change validation rules if needed
+            // Example: if (currentStatus === 'approved' && newStatus === 'pending') {...}
+        }
+        
+        // Update document
+        const updatePayload = {
+            status: newStatus,
+            adminComment: allowedUpdates.adminComment,
+            reviewedBy: allowedUpdates.reviewedBy,
+            reviewedAt: allowedUpdates.reviewedAt
+        };
+        
+        await document.update(updatePayload);
+        
+        return messageHandler(
+            'Document updated successfully',
+            true,
+            200,
+            document
+        );
+    } catch (error) {
+        console.error('Update document error:', error);
+        return messageHandler(
+            error.message || 'Failed to update document',
+            false,
+            500
+        );
+    }
 }; 

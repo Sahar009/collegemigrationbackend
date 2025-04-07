@@ -38,6 +38,22 @@ export const ApplicationDocument = sequelize.define('ApplicationDocument', {
     status: {
         type: DataTypes.ENUM('pending', 'approved', 'rejected'),
         defaultValue: 'pending'
+    },
+    adminComment: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    reviewedBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'admins',
+            key: 'adminId'
+        }
+    },
+    reviewedAt: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 }, {
     tableName: 'application_documents',

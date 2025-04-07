@@ -65,7 +65,7 @@ export const getAllApplicationsService = async (query) => {
                 include: [
                     {
                         model: Member,
-                        as: 'member',
+                        as: 'applicationMember',
                         attributes: ['memberId', 'firstname', 'lastname', 'email']
                     },
                     {
@@ -118,8 +118,8 @@ export const getAllApplicationsService = async (query) => {
                 type: 'direct',
                 programName: app.program?.programName,
                 schoolName: app.program?.schoolName,
-                applicantName: `${app.member?.firstname} ${app.member?.lastname}`,
-                applicantEmail: app.member?.email,
+                applicantName: `${app.applicationMember?.firstname} ${app.applicationMember?.lastname}`,
+                applicantEmail: app.applicationMember?.email,
                 status: app.applicationStatus,
                 paymentStatus: app.paymentStatus,
                 applicationDate: app.applicationDate,
@@ -159,8 +159,8 @@ export const getAllApplicationsService = async (query) => {
                 type: 'direct',
                 programName: app.program?.programName,
                 schoolName: app.program?.schoolName,
-                applicantName: `${app.member?.firstname} ${app.member?.lastname}`,
-                applicantEmail: app.member?.email,
+                applicantName: `${app.applicationMember?.firstname} ${app.applicationMember?.lastname}`,
+                applicantEmail: app.applicationMember?.email,
                 status: app.applicationStatus,
                 paymentStatus: app.paymentStatus,
                 applicationDate: app.applicationDate,

@@ -128,5 +128,7 @@ adminRouter.get('/withdrawals', asyncHandler(adminWithdrawalController.getAllWit
 adminRouter.get('/withdrawals/stats', asyncHandler(adminWithdrawalController.getWithdrawalStats));
 adminRouter.get('/withdrawals/:withdrawalId', asyncHandler(adminWithdrawalController.getWithdrawalById));
 adminRouter.put('/withdrawals/:withdrawalId/process', asyncHandler(adminWithdrawalController.processWithdrawal));
-
+//user routes
+adminRouter.put('/users/:userType/:userId', asyncHandler(adminUserController.updateUserDetails));
+adminRouter.put('/documents/:documentType/:documentId', asyncHandler(adminUserController.updateUserDocument));
 export default adminRouter; 

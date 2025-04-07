@@ -126,4 +126,56 @@ export const resetUserPassword = async (req, res) => {
             )
         );
     }
-}; 
+};
+
+// Update user details
+export const updateUserDetails = async (req, res) => {
+    try {
+        const { userId, userType } = req.params;
+        const updateData = req.body;
+        
+        const result = await adminUserService.updateUserDetailsService(
+            userId, 
+            userType, 
+            updateData
+        );
+        
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Controller error:', error);
+        return res.status(500).json(
+            messageHandler(
+                "Internal server error",
+                false,
+                500
+            )
+        );
+    }
+};
+
+// Update user document
+export const updateUserDocument = async (req, res) => {
+    try {
+        const { documentId, documentType } = req.params;
+        const updateData = req.body;
+        const adminId = req.user.id; // Assuming admin user ID is in the token
+        
+        const result = await adminUserService.updateUserDocumentService(
+            documentId,
+            documentType,
+            updateData,
+            adminId
+        );
+        
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Controller error:', error);
+        return res.status(500).json(
+            messageHandler(
+                "Internal server error",
+                false,
+                500
+            )
+        );
+    }
+};
