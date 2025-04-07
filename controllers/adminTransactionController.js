@@ -43,28 +43,23 @@ export const exportTransactions = async (req, res) => {
     const result = await exportTransactionsService(req.query);
     
     if (!result.success) {
-      return res.status(result.statusCode).json(result);
+      return res.status(result.statusCode || 500).json(result);
     }
-    
-    // Set headers for file download
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=${result.data.filename}`);
-    
-    // Stream the file
-    const fileStream = fs.createReadStream(result.data.path);
-    fileStream.pipe(res);
-    
-    // Delete the file after sending
-    fileStream.on('end', () => {
-      fs.unlinkSync(result.data.path);
+
+    // Set headers before sending response
+    res.set({
+      'Content-Type': result.headers['Content-Type'],
+      'Content-Disposition': result.headers['Content-Disposition']
     });
     
+    // Send the CSV data directly
+    res.send(result.data);
+
   } catch (error) {
-    console.error('Export transactions error:', error);
-    return res.status(500).json({
+    console.error('Export error:', error);
+    res.status(500).json({
       success: false,
-      message: error.message || 'Failed to export transactions',
-      statusCode: 500
+      message: 'Internal server error during export'
     });
   }
-}; 
+};

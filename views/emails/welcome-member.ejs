@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Welcome to College Migration</title>
+</head>
+<body>
+    <h1>Welcome <%= name %>!</h1>
+    
+    <p>Your account has been created by our admin team. Here are your login details:</p>
+    
+    <div style="background: #f5f5f5; padding: 20px; border-radius: 5px;">
+        <p><strong>Temporary Password:</strong> <%= tempPassword %></p>
+        <p>Please login and change your password immediately:</p>
+        <a href="<%= loginUrl %>" 
+           style="background: #0066cc; color: white; padding: 10px 20px; 
+                  text-decoration: none; border-radius: 5px;">
+            Login Now
+        </a>
+    </div>
+
+    <p>If you need any assistance, contact our support team at 
+       <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a></p>
+
+    <footer style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+        <p>Best regards,<br>College Migration Team</p>
+    </footer>
+</body>
+</html> 

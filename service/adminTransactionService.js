@@ -8,6 +8,7 @@ import { Transaction } from '../schema/transactionSchema.js';
 import { Parser } from 'json2csv';
 import fs from 'fs';
 import path from 'path';
+import moment from 'moment';
 
 // Get all transactions with filtering and pagination
 export const getAllTransactionsService = async (query) => {
@@ -613,31 +614,17 @@ export const exportTransactionsService = async (query) => {
     
     const json2csvParser = new Parser({ fields });
     const csv = json2csvParser.parse(transactions);
-    
-    // Create a unique filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `transactions_export_${timestamp}.csv`;
-    
-    // Create uploads directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'uploads', 'exports');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    const filePath = path.join(uploadDir, filename);
-    
-    // Write CSV to file
-    fs.writeFileSync(filePath, csv);
+  
     
     return {
       success: true,
       message: 'Transactions exported successfully',
       statusCode: 200,
-      data: {
-        filename,
-        path: filePath,
-        count: transactions.length
-      }
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename=transactions_${moment().format('YYYYMMDD_HHmmss')}.csv`
+      },
+      data: csv
     };
   } catch (error) {
     console.error('Export transactions error:', error);

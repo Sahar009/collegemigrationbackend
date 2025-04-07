@@ -14,6 +14,12 @@ import { ApplicationDocument } from '../schema/applicationDocumentSchema.js';
 import AgentTransaction from '../schema/AgentTransactionSchema.js';
 import sequelize from '../database/db.js';
 import { Transaction } from '../schema/transactionSchema.js';
+import { sendEmail } from '../utils/sendEmail.js';
+
+
+const generateTempPassword = () => {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
 
 // Get all users (members and agents) with pagination and filtering
 export const getAllUsersService = async (query) => {
@@ -625,3 +631,168 @@ export const updateUserDocumentService = async (documentId, documentType, update
         );
     }
 }; 
+
+export const createMemberService = async (memberData) => {
+    try {
+        // Validate required fields based on schema
+        const requiredFields = [
+           'email', 'firstname', 'lastname', 'othernames',
+            'phone', 'gender', 'dob', 'homeAddress', 'homeCity',
+            'homeZipCode', 'homeState', 'homeCountry', 'idType',
+            'idNumber', 'idScanFront', 'nationality',
+            'schengenVisaHolder', 'photo'
+
+        ];
+        
+        const missingFields = requiredFields.filter(field => !memberData[field]);
+        if (missingFields.length > 0) {
+           
+            return messageHandler(
+                `Missing required fields: ${missingFields.join(', ')}`,
+                false,
+                400
+            );
+        }
+
+        // Check for duplicate email
+        const existingMember = await Member.findOne({
+            where: { email: memberData.email }
+        });
+        
+        if (existingMember) {
+            return messageHandler('Email already exists', false, 409);
+        }
+
+        // Generate temporary password
+        const tempPassword = generateTempPassword();
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        // Filter valid fields from memberData
+        const validFields = [
+            'email', 'firstname', 'lastname', 'othernames',
+            'phone', 'gender', 'dob', 'homeAddress', 'homeCity',
+            'homeZipCode', 'homeState', 'homeCountry', 'idType',
+            'idNumber', 'idScanFront', 'nationality',
+            'schengenVisaHolder', 'photo'
+        ];
+        
+        const filteredData = Object.keys(memberData)
+            .filter(key => validFields.includes(key))
+            .reduce((obj, key) => {
+                obj[key] = memberData[key];
+                return obj;
+            }, {});
+
+        // Create member with validated data
+        const newMember = await Member.create({
+            ...filteredData,
+            password: hashedPassword,
+            memberStatus: 'active', // Override default for admin-created
+            emailVerified: true
+        });
+
+        // Send welcome email with temp password (implement separately)
+        await sendEmail(newMember.email, tempPassword);
+        
+        return messageHandler(
+            'Member created successfully',
+            true,
+            201,
+            {
+                memberId: newMember.memberId,
+                tempPassword: tempPassword // Only return in development!
+            }
+        );
+    } catch (error) {
+        console.error('Create member error:', error);
+        return messageHandler(
+            error.message || 'Failed to create member',
+            false,
+            500
+        );
+    }
+}; 
+
+export const uploadUserDocumentsService = async (userId, userType, files, adminId) => {
+    try {
+        const documentTypeMap = {
+            // Application Documents (member)
+            internationalPassport: 'PASSPORT',
+            olevelResult: 'OLEVEL_RESULT',
+            olevelPin: 'OLEVEL_PIN',
+            academicReferenceLetter: 'REFERENCE_LETTER',
+            resume: 'RESUME',
+            universityDegreeCertificate: 'DEGREE_CERTIFICATE',
+            universityTranscript: 'TRANSCRIPT',
+            sop: 'STATEMENT_OF_PURPOSE',
+            researchDocs: 'RESEARCH_DOCUMENTS',
+            languageTestCert: 'LANGUAGE_TEST',
+            photo: 'PHOTO',
+            idScanFront: 'ID_FRONT',
+           
+        };
+
+        let documentModel;
+        const commonData = {
+            reviewedBy: adminId,
+            reviewedAt: new Date(),
+            status: 'pending'
+        };
+
+        // Determine model and additional fields
+        switch(userType) {
+            case 'member':
+                documentModel = ApplicationDocument;
+                commonData.memberId = userId;
+                break;
+            case 'agent-student':
+                documentModel = AgentStudentDocument;
+                commonData.memberId = userId;
+                commonData.agentId = await getAgentIdForStudent(userId); // Implement this
+                break;
+            default:
+                return messageHandler('Invalid user type', false, 400);
+        }
+
+        // Process uploaded files
+        const uploadPromises = Object.entries(files).map(async ([fieldName, fileArray]) => {
+            const file = fileArray[0];
+            const documentType = documentTypeMap[fieldName];
+            
+            if (!documentType) {
+                console.warn(`Unknown document type for field: ${fieldName}`);
+                return null;
+            }
+
+            return documentModel.create({
+                ...commonData,
+                documentType,
+                documentPath: file.path,
+                filename: file.originalname,
+                mimeType: file.mimetype
+            });
+        });
+
+        const documents = (await Promise.all(uploadPromises)).filter(Boolean);
+        
+        return messageHandler(
+            'Documents uploaded successfully',
+            true,
+            201,
+            { documents }
+        );
+    } catch (error) {
+        console.error('Document upload error:', error);
+        return messageHandler(
+            error.message || 'Failed to upload documents',
+            false,
+            500
+        );
+    }
+};
+
+// Helper function to get agent ID for a student
+async function getAgentIdForStudent(studentId) {
+    const student = await AgentStudent.findByPk(studentId);
+    return student?.agentId;
+} 

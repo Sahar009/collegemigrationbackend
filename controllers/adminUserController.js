@@ -179,3 +179,106 @@ export const updateUserDocument = async (req, res) => {
         );
     }
 };
+
+// Create user document
+export const createUserDocument = async (req, res) => {
+    try {
+        const { userId, userType } = req.params;
+        const documentData = req.body;
+        const file = req.file; // Assuming you're using multer/file upload
+        
+        const result = await adminUserService.createUserDocumentService(
+            userId,
+            userType,
+            documentData,
+            {
+                path: file.path,
+                filename: file.filename
+            },
+            req.user.id
+        );
+        
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Controller error:', error);
+        return res.status(500).json(
+            messageHandler(
+                "Internal server error",
+                false,
+                500
+            )
+        );
+    }
+};
+
+// Create member
+export const createMember = async (req, res) => {
+    try {
+        if (!req.files?.idScanFront?.[0] || !req.files?.photo?.[0]) {
+            console.log('missing required filleds id and photo')
+            return res.status(400).json(
+                messageHandler("Missing required files: ID scan and photo", false, 400)
+            );
+        }
+
+        const memberData = {
+            ...req.body,
+            idScanFront: req.files.idScanFront[0].path,
+            photo: req.files.photo[0].path,
+            internationalPassport: req.files.internationalPassport?.[0]?.path,
+            idScanBack: req.files.idScanBack?.[0]?.path
+        };
+
+        console.log('Processed member data:', {
+            ...memberData,
+            files: Object.keys(req.files).map(k => ({
+                field: k,
+                count: req.files[k].length
+            }))
+        });
+
+        const result = await adminUserService.createMemberService(memberData);
+        
+        const responseData = result.data ? {
+            ...result.data,
+            tempPassword: process.env.NODE_ENV === 'production' 
+                ? undefined 
+                : result.data.tempPassword
+        } : null;
+
+        return res.status(result.statusCode).json({
+            ...result,
+            data: responseData
+        });
+    } catch (error) {
+        console.error('Controller error:', error);
+        return res.status(500).json(
+            messageHandler(
+                error.message || "Internal server error",
+                false,
+                500
+            )
+        );
+    }
+};
+
+export const uploadUserDocuments = async (req, res) => {
+    try {
+        const { userId, userType } = req.params;
+        const files = req.files;
+        
+        const result = await adminUserService.uploadUserDocumentsService(
+            userId,
+            userType,
+            files,
+            req.user.id // adminId
+        );
+        
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Controller error:', error);
+        return res.status(500).json(
+            messageHandler("Internal server error", false, 500)
+        );
+    }
+};

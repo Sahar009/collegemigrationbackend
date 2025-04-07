@@ -32,6 +32,7 @@ import * as adminSchoolController from '../../controllers/adminSchoolController.
 import * as adminTransactionController from '../../controllers/adminTransactionController.js';
 import * as adminNotificationController from '../../controllers/adminNotificationController.js';
 import * as adminWithdrawalController from '../../controllers/adminWithdrawalController.js';
+import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
 const adminRouter = express.Router();
 
 // Auth routes (public)
@@ -131,4 +132,7 @@ adminRouter.put('/withdrawals/:withdrawalId/process', asyncHandler(adminWithdraw
 //user routes
 adminRouter.put('/users/:userType/:userId', asyncHandler(adminUserController.updateUserDetails));
 adminRouter.put('/documents/:documentType/:documentId', asyncHandler(adminUserController.updateUserDocument));
+adminRouter.post('/create-user',uploadFields, // Handle multiple file uploads
+    handleUploadError, asyncHandler(adminUserController.createMember));
+adminRouter.post('/upload-user-documents/:userId/:userType', uploadFields, handleUploadError, asyncHandler(adminUserController.uploadUserDocuments));
 export default adminRouter; 
