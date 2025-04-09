@@ -4,7 +4,8 @@ import {
   createProgramService,
   updateProgramService,
   toggleProgramStatusService,
-  importProgramsFromCSVService
+  importProgramsFromCSVService,
+  exportProgramsService
 } from '../service/adminProgramService.js';
 import multer from 'multer';
 import path from 'path';
@@ -137,4 +138,33 @@ export const importProgramsFromCSV = async (req, res) => {
       statusCode: 500
     });
   }
-}; 
+};
+
+// Export programs
+export const exportPrograms = async (req, res) => {
+  try {
+    const result = await exportProgramsService(req.query);
+    
+    if (!result.success) {
+      return res.status(result.statusCode).json(result);
+    }
+
+    // Set secure headers
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename=${result.filename}`,
+      // 'Access-Control-Allow-Origin': 'http://localhost:5173',
+      'Access-Control-Expose-Headers': 'Content-Disposition',
+      'Vary': 'Origin'
+    });
+
+    return res.send(result.csvData);
+
+  } catch (error) {
+    console.error('Export controller error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};

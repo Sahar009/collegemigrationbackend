@@ -318,4 +318,69 @@ export const importProgramsFromCSVService = async (filePath) => {
       500
     );
   }
+};
+
+export const exportProgramsService = async (query) => {
+  try {
+    const programs = await Program.findAll({
+      where: buildExportFilters(query),
+      raw: true
+    });
+
+    if (programs.length === 0) {
+      return messageHandler('No programs found to export', false, 404);
+    }
+
+    // Create CSV headers based on import structure
+    const headers = [
+      'programName', 'schoolId', 'degree', 'degreeLevel',
+      'language', 'semesters', 'fee', 'applicationFee',
+      'location', 'about', 'features', 'applicationDeadline',
+      'isActive'
+    ];
+
+    // Create CSV content
+    let csvContent = headers.join(',') + '\n';
+    
+    programs.forEach(program => {
+      const row = headers.map(header => {
+        let value = program[header] || '';
+        
+        // Handle special formatting
+        if (header === 'isActive') {
+          value = program.isActive ? 'true' : 'false';
+        }
+        if (header === 'applicationDeadline' && program.applicationDeadline) {
+          value = new Date(program.applicationDeadline).toISOString().split('T')[0];
+        }
+        
+        // Escape commas and wrap in quotes if needed
+        if (typeof value === 'string' && value.includes(',')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      }).join(',');
+      
+      csvContent += row + '\n';
+    });
+
+    return messageHandler(
+      'Programs exported successfully',
+      true,
+      200,
+      {
+        csvData: csvContent,
+        filename: `programs-export-${Date.now()}.csv`,
+        count: programs.length
+      }
+    );
+
+  } catch (error) {
+    console.error('Export programs error:', error);
+    return messageHandler(
+      error.message || 'Failed to export programs',
+      false,
+      500
+    );
+  }
 }; 

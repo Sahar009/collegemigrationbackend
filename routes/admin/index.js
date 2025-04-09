@@ -104,7 +104,7 @@ adminRouter.post('/programs', asyncHandler(adminProgramController.createProgram)
 adminRouter.put('/programs/:programId', asyncHandler(adminProgramController.updateProgram));
 adminRouter.put('/programs/:programId/status', asyncHandler(adminProgramController.toggleProgramStatus));
 adminRouter.post('/programs/import', asyncHandler(adminProgramController.importProgramsFromCSV));
-
+adminRouter.get('/programs/export', asyncHandler(adminProgramController.exportPrograms));
 //school routes
 adminRouter.get('/schools', asyncHandler(adminSchoolController.getAllSchools));
 adminRouter.get('/schools/:schoolId', asyncHandler(adminSchoolController.getSchoolById));

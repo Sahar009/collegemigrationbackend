@@ -87,4 +87,9 @@ export const handleUploadError = (err, req, res, next) => {
         });
     }
     next();
-}; 
+};
+
+// Add to existing upload config
+export const messageAttachments = upload.fields([
+    { name: 'attachments', maxCount: 5 }
+]); 
