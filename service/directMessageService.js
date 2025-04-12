@@ -1,10 +1,20 @@
 import { DirectMessage } from '../schema/DirectMessageSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { Op } from 'sequelize';
-import { sequelize } from '../config/database.js';
-
+import sequelize from '../database/db.js';
+import { Agent } from '../schema/AgentSchema.js';
+import { Member } from '../schema/memberSchema.js';
+import Admin from '../schema/AdminSchema.js';
 export const createDirectMessage = async (messageData, files) => {
     try {
+        console.log('Creating message with data:', messageData);
+        console.log('Files:', files);
+        
+        // Validate required fields
+        if (!messageData.senderId || !messageData.receiverId || !messageData.message) {
+            return messageHandler("Missing required fields", false, 400);
+        }
+
         const attachments = files?.map(file => ({
             name: file.originalname,
             path: file.path
@@ -18,7 +28,7 @@ export const createDirectMessage = async (messageData, files) => {
         return messageHandler('Message sent', true, 201, message);
     } catch (error) {
         console.error('Create message error:', error);
-        return messageHandler('Failed to send message', false, 500);
+        return messageHandler(error.message || 'Failed to send message', false, 500);
     }
 };
 
@@ -107,12 +117,40 @@ export const getAllUserConversations = async (userId, userType) => {
                         ]
                     },
                     order: [['createdAt', 'DESC']],
-                    limit: 1 // Get only the last message
+                    limit: 1
                 });
+
+                // Get partner details based on their type
+                let partnerDetails;
+                if (partner.receiverType === 'admin') {
+                    partnerDetails = await Admin.findByPk(partner.partnerId, {
+                        attributes: ['username', 'profileImage']
+                    });
+                } else if (partner.receiverType === 'agent') {
+                    partnerDetails = await Agent.findByPk(partner.partnerId, {
+                        attributes: ['contactPerson', 'companyName', 'logo']
+                    });
+                } else if (partner.receiverType === 'member') {
+                    partnerDetails = await Member.findByPk(partner.partnerId, {
+                        attributes: ['firstname', 'lastname', 'photo']
+                    });
+                }
 
                 return {
                     partnerId: partner.partnerId,
                     partnerType: partner.receiverType,
+                    partnerName: partnerDetails ? 
+                        (partner.receiverType === 'member' ? 
+                            `${partnerDetails.firstname} ${partnerDetails.lastname}` : 
+                            partner.receiverType === 'agent' ? 
+                                partnerDetails.contactPerson : 
+                                partnerDetails.username) : 'Unknown',
+                    partnerImage: partnerDetails ? 
+                        (partner.receiverType === 'agent' ? 
+                            partnerDetails.logo : 
+                            partner.receiverType === 'member' ? 
+                                partnerDetails.photo : 
+                                partnerDetails.profileImage) : '',
                     lastMessage: messages[0]?.message || '',
                     timestamp: messages[0]?.createdAt || new Date(),
                     unreadCount: await DirectMessage.count({
@@ -138,4 +176,4 @@ export const getAllUserConversations = async (userId, userType) => {
         console.error('Get conversations error:', error);
         return messageHandler('Failed to retrieve conversations', false, 500);
     }
-}; 
+};

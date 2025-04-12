@@ -21,6 +21,18 @@ const sequelize = new Sequelize(
         require: true,
         rejectUnauthorized: false
       }
+    },
+    retry: {
+      match: [
+        /SequelizeConnectionError/,
+        /SequelizeConnectionRefusedError/,
+        /SequelizeHostNotFoundError/,
+        /SequelizeHostNotReachableError/,
+        /SequelizeInvalidConnectionError/,
+        /SequelizeConnectionTimedOutError/,
+        /TimeoutError/
+      ],
+      max: 3
     }
   }
 )

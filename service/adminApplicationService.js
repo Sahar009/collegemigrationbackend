@@ -219,16 +219,18 @@ export const getApplicationDetailsService = async (applicationId, applicationTyp
                 include: [
                     {
                         model: Member,
-                        as: 'member',
-                        attributes: { exclude: ['password'] }
+                        as: 'applicationMember',
+                        attributes: ['memberId', 'firstname', 'lastname', 'othernames', 'email', 'phone', 'gender', 'dob', 'homeAddress', 'homeCity', 'homeZipCode', 'homeState', 'homeCountry', 'nationality', 'idType', 'idNumber', 'idScanFront', 'idScanBack', 'photo', 'schengenVisaHolder', 'memberStatus', 'regDate']
                     },
                     {
                         model: Program,
-                        as: 'program'
+                        as: 'program',
+                        attributes: ['programId', 'programName', 'degree', 'degreeLevel', 'category', 'schoolName', 'language', 'semesters', 'fee', 'location', 'about', 'features', 'schoolLogo', 'programImage', 'applicationFee', 'applicationDeadline']
                     },
                     {
                         model: ApplicationDocument,
-                        as: 'applicationDocument'
+                        as: 'applicationDocuments',
+                        attributes: ['documentId', 'memberId', 'documentType', 'documentPath', 'status', 'uploadDate']
                     }
                 ]
             });
@@ -245,7 +247,8 @@ export const getApplicationDetailsService = async (applicationId, applicationTyp
                         as: 'student',
                         include: [{
                             model: AgentStudentDocument,
-                            as: 'documents'
+                            as: 'documents',
+                            attributes: ['documentId', 'memberId', 'agentId', 'documentType', 'documentPath', 'status', 'uploadDate']
                         }]
                     },
                     {

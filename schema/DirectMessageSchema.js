@@ -12,16 +12,22 @@ export const DirectMessage = sequelize.define('DirectMessage', {
         allowNull: false
     },
     senderType: {
-        type: DataTypes.ENUM('admin', 'user', 'agent'),
-        allowNull: false
+        type: DataTypes.ENUM('admin', 'agent', 'member'),
+        allowNull: false,
+        validate: {
+            isIn: [['admin', 'agent', 'member']]
+        }
     },
     receiverId: {
         type: DataTypes.INTEGER,
         allowNull: false
     },
     receiverType: {
-        type: DataTypes.ENUM('admin', 'user', 'agent'),
-        allowNull: false
+        type: DataTypes.ENUM('admin', 'user', 'agent', 'member', 'student'),
+        allowNull: false,
+        validate: {
+            isIn: [['admin', 'user', 'agent', 'member', 'student']]
+        }
     },
     message: {
         type: DataTypes.TEXT,
@@ -30,6 +36,7 @@ export const DirectMessage = sequelize.define('DirectMessage', {
     attachments: {
         type: DataTypes.JSON,
         allowNull: true,
+        defaultValue: [],
         comment: 'Array of file paths {name: string, path: string}'
     },
     readAt: {
