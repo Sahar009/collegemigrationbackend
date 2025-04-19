@@ -5,6 +5,8 @@ import sequelize from '../database/db.js';
 import { Agent } from '../schema/AgentSchema.js';
 import { Member } from '../schema/memberSchema.js';
 import Admin from '../schema/AdminSchema.js';
+import axios from 'axios';
+
 export const createDirectMessage = async (messageData, files) => {
     try {
         console.log('Creating message with data:', messageData);
@@ -83,97 +85,158 @@ export const markAsRead = async (messageIds, userId, userType) => {
 
 export const getAllUserConversations = async (userId, userType) => {
     try {
-        // Get all unique conversation partners
-        const partners = await DirectMessage.findAll({
-            attributes: [
-                [sequelize.fn('DISTINCT', sequelize.col('receiverId')), 'partnerId'],
-                'receiverType'
-            ],
-            where: {
-                senderId: userId,
-                senderType: userType
-            },
-            raw: true
+        console.log('Getting conversations for:', { userId, userType });
+        
+        const partners = await sequelize.query(`
+            SELECT DISTINCT
+                CASE
+                    WHEN senderId = :userId THEN receiverId
+                    ELSE senderId
+                END AS "partnerId",
+                CASE
+                    WHEN senderId = :userId THEN receiverType
+                    ELSE senderType
+                END AS "partnerType"
+            FROM direct_messages
+            WHERE 
+                (senderId = :userId AND senderType = :userType) OR
+                (receiverId = :userId AND receiverType = :userType)
+        `, {
+            replacements: { userId, userType },
+            type: sequelize.QueryTypes.SELECT
         });
 
-        // Get conversation details for each partner
+        if (!partners || partners.length === 0) {
+            return {
+                success: false,
+                statusCode: 404,
+                message: 'No conversations found'
+            };
+        }
+
         const conversations = await Promise.all(
-            partners.map(async (partner) => {
-                const messages = await DirectMessage.findAll({
-                    where: {
-                        [Op.or]: [
-                            {
-                                senderId: userId,
-                                senderType: userType,
-                                receiverId: partner.partnerId,
-                                receiverType: partner.receiverType
-                            },
-                            {
-                                senderId: partner.partnerId,
-                                senderType: partner.receiverType,
-                                receiverId: userId,
-                                receiverType: userType
-                            }
-                        ]
-                    },
-                    order: [['createdAt', 'DESC']],
-                    limit: 1
-                });
-
-                // Get partner details based on their type
-                let partnerDetails;
-                if (partner.receiverType === 'admin') {
-                    partnerDetails = await Admin.findByPk(partner.partnerId, {
-                        attributes: ['username', 'profileImage']
-                    });
-                } else if (partner.receiverType === 'agent') {
-                    partnerDetails = await Agent.findByPk(partner.partnerId, {
-                        attributes: ['contactPerson', 'companyName', 'logo']
-                    });
-                } else if (partner.receiverType === 'member') {
-                    partnerDetails = await Member.findByPk(partner.partnerId, {
-                        attributes: ['firstname', 'lastname', 'photo']
-                    });
-                }
-
-                return {
-                    partnerId: partner.partnerId,
-                    partnerType: partner.receiverType,
-                    partnerName: partnerDetails ? 
-                        (partner.receiverType === 'member' ? 
-                            `${partnerDetails.firstname} ${partnerDetails.lastname}` : 
-                            partner.receiverType === 'agent' ? 
-                                partnerDetails.contactPerson : 
-                                partnerDetails.username) : 'Unknown',
-                    partnerImage: partnerDetails ? 
-                        (partner.receiverType === 'agent' ? 
-                            partnerDetails.logo : 
-                            partner.receiverType === 'member' ? 
-                                partnerDetails.photo : 
-                                partnerDetails.profileImage) : '',
-                    lastMessage: messages[0]?.message || '',
-                    timestamp: messages[0]?.createdAt || new Date(),
-                    unreadCount: await DirectMessage.count({
+            partners.map(async ({ partnerId, partnerType }) => {
+                try {
+                    const messages = await DirectMessage.findAll({
                         where: {
-                            senderId: partner.partnerId,
-                            senderType: partner.receiverType,
-                            receiverId: userId,
-                            receiverType: userType,
-                            readAt: null
-                        }
-                    })
-                };
+                            [Op.or]: [
+                                {
+                                    senderId: userId,
+                                    senderType: userType,
+                                    receiverId: partnerId,
+                                    receiverType: partnerType
+                                },
+                                {
+                                    senderId: partnerId,
+                                    senderType: partnerType,
+                                    receiverId: userId,
+                                    receiverType: userType
+                                }
+                            ]
+                        },
+                        order: [['createdAt', 'DESC']],
+                        limit: 1
+                    });
+
+                    let partnerDetails = null;
+                    let partnerName = 'Unknown';
+                    let partnerImage = null;
+                    
+                    if (partnerType === 'agent') {
+                        partnerDetails = await Agent.findByPk(partnerId);
+                        partnerName = partnerDetails?.companyName || 'Unknown';
+                        partnerImage = partnerDetails?.photo || null;
+                    } else if (partnerType === 'member') {
+                        partnerDetails = await Member.findByPk(partnerId);
+                        partnerName = partnerDetails ? `${partnerDetails.firstname} ${partnerDetails.lastname}`.trim() : 'Unknown';
+                        partnerImage = partnerDetails?.photo || null;
+                    } else if (partnerType === 'admin') {
+                        partnerDetails = await Admin.findByPk(partnerId);
+                        partnerName = partnerDetails?.name || 'Unknown';
+                        partnerImage = partnerDetails?.photo || null;
+                    }
+
+                    return {
+                        partnerId,
+                        partnerType,
+                        partnerName,
+                        partnerImage,
+                        lastMessage: messages[0]?.message,
+                        timestamp: messages[0]?.createdAt,
+                        unreadCount: await DirectMessage.count({
+                            where: {
+                                receiverId: userId,
+                                receiverType: userType,
+                                senderId: partnerId,
+                                senderType: partnerType,
+                                readAt: null
+                            }
+                        })
+                    };
+                } catch (error) {
+                    console.error(`Error processing partner ${partnerId}:`, error);
+                    return null;
+                }
             })
         );
 
-        return messageHandler(
-            'Conversations retrieved successfully',
-            true,
-            200,
-            conversations.sort((a, b) => b.timestamp - a.timestamp)
-        );
+        const validConversations = conversations.filter(conv => conv !== null);
+        
+        return {
+            success: true,
+            statusCode: 200,
+            data: validConversations
+        };
     } catch (error) {
-        console.error('Get conversations error:', error);
-        return messageHandler('Failed to retrieve conversations', false, 500);
+        console.error('Error in getAllUserConversations:', error);
+        return {
+            success: false,
+            statusCode: 500,
+            message: error.message || 'Failed to get conversations'
+        };
     }
+};
+
+export const fetchConversations = (userType = 'member') => async (dispatch) => {
+  try {
+    const endpoint = userType === 'admin' 
+      ? '/message/conversations' 
+      : `/message/${userType}/conversations`;
+    
+    const response = await axios.get(endpoint);
+    
+    // Check if response has data property
+    if (!response.data) {
+      throw new Error('Invalid response format');
+    }
+
+    // Handle both array and object responses
+    const responseData = Array.isArray(response.data) 
+      ? response.data 
+      : response.data.data || [];
+
+    const conversations = responseData.map(convo => ({
+      partnerId: convo.partnerId || convo.id,
+      partnerType: convo.partnerType || userType,
+      partnerName: convo.partnerName || convo.name,
+      lastMessage: convo.lastMessage?.content || convo.lastMessage || '',
+      timestamp: convo.lastMessage?.createdAt || convo.updatedAt || new Date().toISOString(),
+      unreadCount: convo.unreadCount || 0,
+      messages: convo.messages || []
+    }));
+    
+    dispatch({
+      type: `FETCH_${userType.toUpperCase()}_CONVERSATIONS_SUCCESS`,
+      payload: conversations
+    });
+
+    return conversations;
+  } catch (error) {
+    console.error('Error fetching conversations:', error);
+    dispatch({
+      type: `FETCH_${userType.toUpperCase()}_CONVERSATIONS_FAILURE`,
+      payload: error.message
+    });
+    throw error;
+  }
 };

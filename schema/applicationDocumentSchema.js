@@ -47,7 +47,7 @@ export const ApplicationDocument = sequelize.define('ApplicationDocument', {
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {
-            model: 'admins',
+            model: 'admin_users',
             key: 'adminId'
         }
     },

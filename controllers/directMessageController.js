@@ -48,16 +48,16 @@ export const getConversation = async (req, res) => {
     }
 };
 
-export const getAllConversations = async (req, res) => {
+export const getAllConversations = async (userId, userType) => {
     try {
-        const result = await getAllUserConversations(
-            req.user.id,
-            req.user.type
-        );
-        return res.status(result.statusCode).json(result);
+        const result = await getAllUserConversations(userId, userType);
+        return result;
     } catch (error) {
-        return res.status(500).json(
-            messageHandler("Internal server error", false, 500)
-        );
+        console.error('Error in getAllConversations:', error);
+        return {
+            success: false,
+            statusCode: 500,
+            message: error.message || 'Internal server error'
+        };
     }
 }; 
