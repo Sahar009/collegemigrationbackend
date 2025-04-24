@@ -33,6 +33,7 @@ import * as adminTransactionController from '../../controllers/adminTransactionC
 import * as adminNotificationController from '../../controllers/adminNotificationController.js';
 import * as adminWithdrawalController from '../../controllers/adminWithdrawalController.js';
 import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
+import { toggleProgramStatusController } from '../../controllers/programController.js';
 const adminRouter = express.Router();
 
 // Auth routes (public)
@@ -105,6 +106,8 @@ adminRouter.put('/programs/:programId', asyncHandler(adminProgramController.upda
 adminRouter.put('/programs/:programId/status', asyncHandler(adminProgramController.toggleProgramStatus));
 adminRouter.post('/programs/import', asyncHandler(adminProgramController.importProgramsFromCSV));
 adminRouter.get('/programs/export', asyncHandler(adminProgramController.exportPrograms));
+adminRouter.patch('/programs/:id/status', asyncHandler(toggleProgramStatusController));
+
 //school routes
 adminRouter.get('/schools', asyncHandler(adminSchoolController.getAllSchools));
 adminRouter.get('/schools/:schoolId', asyncHandler(adminSchoolController.getSchoolById));
@@ -135,4 +138,22 @@ adminRouter.put('/documents/:documentType/:documentId', asyncHandler(adminUserCo
 adminRouter.post('/create-user',uploadFields, // Handle multiple file uploads
     handleUploadError, asyncHandler(adminUserController.createMember));
 adminRouter.post('/upload-user-documents/:userId/:userType', uploadFields, handleUploadError, asyncHandler(adminUserController.uploadUserDocuments));
+
+adminRouter.get(
+    '/:id/export-to-excel',
+    authenticateAdmin,
+    adminApplicationController.exportApplicationToExcel
+);
+adminRouter.patch(
+    '/:id/intake',
+    authenticateAdmin,
+    adminApplicationController.updateApplicationIntake
+);
+
+// Notification endpoint
+adminRouter.post(
+    '/:id/notify',
+    authenticateAdmin,
+    adminApplicationController.notifyApplicant
+);
 export default adminRouter; 

@@ -20,7 +20,23 @@ export const Program = sequelize.define('Program', {
         allowNull: false
     },
     category: {
-        type: DataTypes.ENUM('undergraduate', 'postgraduate', 'phd'),
+        type: DataTypes.ENUM(
+            'undergraduate', 
+            'postgraduate', 
+            'phd',
+            '1-Year Certificate',
+            '2-Year Diploma',
+            '3-Year Advanced Diploma',
+            '3-Year Bachelor',
+            'Top-up Degree',
+            '4-Year Bachelor',
+            'Integrated Masters',
+            'Postgraduate Certificate',
+            'Postgraduate Diploma',
+            'Masters Degree',
+            'Doctoral/PhD',
+            'Non-Credential'
+        ),
         allowNull: false
     },
     schoolName: {
@@ -36,8 +52,13 @@ export const Program = sequelize.define('Program', {
         allowNull: false
     },
     fee: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false
+    },
+    feeCurrency: {
+        type: DataTypes.STRING(3),
+        allowNull: false,
+        defaultValue: 'USD'
     },
     location: {
         type: DataTypes.STRING(255),
@@ -66,6 +87,11 @@ export const Program = sequelize.define('Program', {
     applicationDeadline: {
         type: DataTypes.STRING(255),
         allowNull: false
+    },
+    isActive: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true
     }
 }, {
     timestamps: false,

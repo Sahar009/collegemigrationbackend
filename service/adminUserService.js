@@ -16,7 +16,6 @@ import sequelize from '../database/db.js';
 import { Transaction } from '../schema/transactionSchema.js';
 import { sendEmail } from '../utils/sendEmail.js';
 
-
 const generateTempPassword = () => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
@@ -471,6 +470,18 @@ export const resetUserPasswordService = async (userId, userType, newPassword) =>
         } else {
             return messageHandler('Invalid user type', false, 400);
         }
+        
+
+        await sendEmail({
+            to: user.email,
+            subject: 'Your Password Has Been Reset',
+            template: 'passwordResetNotification',
+            context: {
+                userName: user.fullName || user.username || 'Valued User',
+                tempPassword: newPassword,
+                loginUrl: `${process.env.FRONTEND_URL}/${userType === 'member' ? 'login' : 'agent/login'}`
+            }
+        });
         
         return messageHandler(
             'Password reset successfully',

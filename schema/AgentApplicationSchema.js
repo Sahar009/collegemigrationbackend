@@ -43,7 +43,15 @@ const AgentApplication = sequelize.define('AgentApplication', {
         defaultValue: 'pending'
     },
     applicationStatus: {
-        type: DataTypes.ENUM('pending', 'approved', 'rejected', 'cancelled'),
+        type: DataTypes.ENUM(
+            'pending', 
+            'approved', 
+            'rejected', 
+            'cancelled',
+            'in_review',
+            'on_hold',
+            'submitted_to_school'
+        ),
         defaultValue: 'pending'
     },
     intake: {

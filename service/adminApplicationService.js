@@ -11,6 +11,11 @@ import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { createNotification } from './notificationService.js';
+import ExcelJS from 'exceljs';
+import { ActivityLog } from '../schema/ActivityLogSchema.js';
+import Notification from '../schema/NotificationSchema.js';
+import Wallet from '../schema/WalletSchema.js';
+import WalletTransaction from '../schema/WalletTransactionSchema.js';
 
 // Get all applications with filtering and pagination
 export const getAllApplicationsService = async (query) => {
@@ -291,60 +296,125 @@ export const getApplicationDetailsService = async (applicationId, applicationTyp
 
 // Update application status
 export const updateApplicationStatusService = async (applicationId, applicationType, updateData) => {
-    const t = await sequelize.transaction();
+    const transaction = await sequelize.transaction();
     
     try {
+        console.log('Updating application status:', applicationId, updateData);
+        
         let application;
         let oldStatus;
+        let oldPaymentStatus;
         let userId;
         let userType;
+        let program;
         
         if (applicationType === 'direct') {
-            application = await Application.findByPk(applicationId, { transaction: t });
+            application = await Application.findByPk(applicationId, { 
+                transaction: transaction,
+                include: [{ model: Program, as: 'program' }]
+            });
             
             if (!application) {
-                await t.rollback();
+                await transaction.rollback();
                 return messageHandler('Application not found', false, 404);
             }
             
             oldStatus = application.applicationStatus;
+            oldPaymentStatus = application.paymentStatus;
             userId = application.memberId;
             userType = 'member';
+            program = application.program;
             
             await application.update({
                 applicationStatus: updateData.applicationStatus || application.applicationStatus,
                 paymentStatus: updateData.paymentStatus || application.paymentStatus,
                 applicationStage: updateData.applicationStage || application.applicationStage,
                 applicationStatusDate: new Date()
-            }, { transaction: t });
+            }, { transaction: transaction });
         } else if (applicationType === 'agent') {
-            application = await AgentApplication.findByPk(applicationId, { transaction: t });
+            application = await AgentApplication.findByPk(applicationId, { 
+                transaction: transaction,
+                include: [{ model: Program, as: 'program' }] 
+            });
             
             if (!application) {
-                await t.rollback();
+                await transaction.rollback();
                 return messageHandler('Application not found', false, 404);
             }
             
             oldStatus = application.applicationStatus;
-            userId = application.agentId;
-            userType = 'agent';
+            oldPaymentStatus = application.paymentStatus;
+            userId = application.memberId; // For agent apps, we refund to the student
+            userType = 'member';
+            program = application.program;
             
             await application.update({
                 applicationStatus: updateData.applicationStatus || application.applicationStatus,
                 paymentStatus: updateData.paymentStatus || application.paymentStatus,
                 applicationStage: updateData.applicationStage || application.applicationStage,
                 applicationStatusDate: new Date()
-            }, { transaction: t });
+            }, { transaction: transaction });
         } else {
-            await t.rollback();
+            await transaction.rollback();
             return messageHandler('Invalid application type', false, 400);
         }
         
-        await t.commit();
+        // Handle refunds if payment status changed to 'refunded'
+        if (updateData.paymentStatus && updateData.paymentStatus === 'refunded' && oldPaymentStatus !== 'refunded') {
+            // Find or create a wallet for the user
+            const [wallet, created] = await Wallet.findOrCreate({
+                where: { userId, userType },
+                defaults: { balance: 0 },
+                transaction: transaction
+            });
+            
+            // Get application fee amount to refund
+            const refundAmount = program?.applicationFee || 0;
+            
+            if (refundAmount > 0) {
+                // Create a wallet transaction
+                await WalletTransaction.create({
+                    walletId: wallet.id,
+                    type: 'refund',
+                    amount: refundAmount,
+                    status: 'Completed',
+                    applicationId: applicationId
+                }, { transaction: transaction });
+                
+                // Update wallet balance
+                await wallet.update({ 
+                    balance: sequelize.literal(`balance + ${refundAmount}`)
+                }, { transaction: transaction });
+                
+                // Set status to 'cancelled' if refunding
+                if (!updateData.applicationStatus) {
+                    await application.update({ applicationStatus: 'cancelled' }, { transaction: transaction });
+                }
+            }
+        }
+        
+        // Try to create activity log, but don't fail the transaction if it errors
+        try {
+            await ActivityLog.create({
+                activity: `Updated application status to ${application.applicationStatus}`,
+                details: JSON.stringify(updateData),
+                adminId: userId,
+                entityType: 'application',
+                entityId: applicationId
+            }, { transaction });
+        } catch (logError) {
+            console.warn('Failed to create activity log, continuing anyway:', logError.message);
+            // Don't rethrow - we want the main transaction to continue even if logging fails
+        }
         
         // Send email notification if status has changed
         if (updateData.applicationStatus && oldStatus !== updateData.applicationStatus) {
             await sendStatusUpdateEmail(application, userId, userType);
+        }
+        
+        // Send refund notification
+        if (updateData.paymentStatus === 'refunded' && oldPaymentStatus !== 'refunded') {
+            await sendRefundNotification(application, userId, userType);
         }
         
         // Send notification to user about status change
@@ -390,13 +460,17 @@ export const updateApplicationStatusService = async (applicationId, applicationT
                         title = 'Application Submitted to School';
                         statusMessage = 'Your application has been submitted to the school. We will update you on their response.';
                         break;
+                    case 'cancelled':
+                        title = 'Application Cancelled';
+                        statusMessage = 'Your application has been cancelled.';
+                        break;
                     default:
                         title = 'Application Status Updated';
                         statusMessage = `Your application status has been updated to ${updateData.applicationStatus}.`;
                 }
                 
                 // Create notification
-                await createNotification({
+                await Notification.create({
                     userId,
                     userType,
                     type: 'application',
@@ -410,9 +484,34 @@ export const updateApplicationStatusService = async (applicationId, applicationT
                         oldStatus: application.applicationStatus,
                         newStatus: updateData.applicationStatus
                     }
-                });
+                }, { transaction });
             }
         }
+        
+        // Send notification about refund
+        if (updateData.paymentStatus === 'refunded' && oldPaymentStatus !== 'refunded') {
+            let refundUserId = applicationType === 'direct' ? application.memberId : application.memberId;
+            let refundUserType = applicationType === 'direct' ? 'member' : 'member';
+            const refundAmount = program?.applicationFee || 0;
+            
+            await Notification.create({
+                userId: refundUserId,
+                userType: refundUserType,
+                type: 'payment',
+                title: 'Application Fee Refunded',
+                message: `Your application fee of ${refundAmount} has been refunded to your wallet for application #${applicationId}.`,
+                link: `/${refundUserType}/wallet`,
+                priority: 1,
+                metadata: {
+                    applicationId,
+                    applicationType,
+                    refundAmount,
+                    refundDate: new Date()
+                }
+            }, { transaction });
+        }
+        
+        await transaction.commit();
         
         return messageHandler(
             'Application status updated successfully',
@@ -421,7 +520,7 @@ export const updateApplicationStatusService = async (applicationId, applicationT
             application
         );
     } catch (error) {
-        await t.rollback();
+        await transaction.rollback();
         console.error('Update application status error:', error);
         return messageHandler(
             error.message || 'Failed to update application status',
@@ -479,6 +578,9 @@ const sendStatusUpdateEmail = async (application, userId, userType) => {
             case 'submitted_to_school':
                 statusMessage = 'has been submitted to the school. We will update you on their response.';
                 break;
+            case 'cancelled':
+                statusMessage = 'has been cancelled. Your application fee will be refunded.';
+                break;
             default:
                 statusMessage = `has been updated to ${application.applicationStatus}`;
         }
@@ -503,6 +605,75 @@ const sendStatusUpdateEmail = async (application, userId, userType) => {
     } catch (error) {
         console.error('Failed to send status update email:', error);
         // Don't throw the error - we don't want to fail the status update if email fails
+    }
+};
+
+// Helper function to send refund notification email
+const sendRefundNotification = async (application, userId, userType) => {
+    try {
+        let user;
+        let email;
+        let name;
+        
+        // Get user details based on user type
+        if (userType === 'member') {
+            user = await Member.findByPk(userId);
+            if (user) {
+                email = user.email;
+                name = `${user.firstname} ${user.lastname}`;
+            }
+        } else if (userType === 'agent') {
+            user = await Agent.findByPk(userId);
+            if (user) {
+                email = user.email;
+                name = user.contactPerson || user.companyName;
+            }
+        }
+        
+        if (!user || !email) {
+            console.error('User not found or email missing for refund notification');
+            return;
+        }
+        
+        // Get the program information to determine refund amount
+        const program = application.program;
+        const refundAmount = program?.applicationFee || 0;
+        
+        if (refundAmount <= 0) {
+            console.log('No refund amount found for application', application.applicationId);
+            return;
+        }
+        
+        // Send email notification
+        await sendEmail({
+            to: email,
+            subject: `Application Fee Refunded - ${application.trackingId || application.applicationId}`,
+            template: 'applicationStatusUpdate', // Using the status update template
+            context: {
+                name,
+                trackingId: application.trackingId || application.applicationId,
+                status: 'Application Cancelled and Refunded',
+                statusMessage: `Your application has been cancelled and a refund of ${refundAmount} has been processed to your wallet. You can use this amount for future applications or request a withdrawal.`,
+                applicationStage: 'Refunded',
+                statusDate: new Date().toLocaleDateString(),
+                loginUrl: process.env.FRONTEND_URL + '/login',
+                additionalInfo: `
+                    <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+                        <h3 style="color: #4CAF50;">Refund Details</h3>
+                        <p><strong>Amount Refunded:</strong> ${refundAmount}</p>
+                        <p><strong>Refund Date:</strong> ${new Date().toLocaleDateString()}</p>
+                        <p><strong>Refund Method:</strong> Wallet Credit</p>
+                        <p>The refunded amount has been credited to your wallet. You can view your updated wallet balance by visiting your account.</p>
+                        <a href="${process.env.FRONTEND_URL}/wallet" style="display: inline-block; margin-top: 15px; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">View Wallet</a>
+                    </div>
+                `
+            }
+        });
+        
+        console.log(`Refund notification email sent to ${email} for application ${application.applicationId}`);
+    } catch (error) {
+        console.error('Failed to send refund notification email:', error);
+        // Don't throw the error - we don't want to fail the refund process if email fails
     }
 };
 
@@ -575,7 +746,7 @@ export const updateDocumentStatusService = async (documentId, documentType, stat
                 }
                 
                 // Create notification
-                await createNotification({
+                await Notification.create({
                     userId,
                     userType,
                     type: 'document',
@@ -646,6 +817,323 @@ export const sendApplicationToSchoolService = async (applicationId, applicationT
         console.error('Send application to school error:', error);
         return messageHandler(
             error.message || 'Failed to send application to school',
+            false,
+            500
+        );
+    }
+};
+
+// Add these new service functions
+
+export const exportApplicationToExcelService = async (applicationId, applicationType) => {
+    try {
+        let application;
+        let applicantInfo;
+        let programInfo;
+        
+        // Get application based on type
+        if (applicationType === 'direct') {
+            application = await Application.findByPk(applicationId, {
+                include: [
+                    { model: Member, as: 'applicationMember' },
+                    { model: Program, as: 'program' }
+                ]
+            });
+            
+            if (!application) {
+                return messageHandler('Application not found', false, 404);
+            }
+            
+            applicantInfo = application.applicationMember;
+            programInfo = application.program;
+            
+        } else if (applicationType === 'agent') {
+            application = await AgentApplication.findByPk(applicationId, {
+                include: [
+                    { model: AgentStudent, as: 'student' },
+                    { model: Agent, as: 'agent' },
+                    { model: Program, as: 'program' }
+                ]
+            });
+            
+            if (!application) {
+                return messageHandler('Application not found', false, 404);
+            }
+            
+            applicantInfo = application.student;
+            programInfo = application.program;
+        } else {
+            return messageHandler('Invalid application type', false, 400);
+        }
+        
+        // Get documents for this application
+        const documents = applicationType === 'direct' 
+            ? await ApplicationDocument.findAll({ where: { applicationId } })
+            : await AgentStudentDocument.findAll({ 
+                where: { 
+                    memberId: application.memberId,
+                    agentId: application.agentId 
+                } 
+            });
+        
+        // Create Excel workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Application Details');
+        
+        // Add application info
+        worksheet.addRow(['Application Information']);
+        worksheet.addRow(['Application ID', application.applicationId]);
+        worksheet.addRow(['Application Date', application.createdAt]);
+        worksheet.addRow(['Status', application.applicationStatus]);
+        worksheet.addRow(['']);
+        
+        // Add applicant info
+        worksheet.addRow(['Applicant Information']);
+        worksheet.addRow(['Name', `${applicantInfo.firstname} ${applicantInfo.lastname}`]);
+        worksheet.addRow(['Email', applicantInfo.email]);
+        worksheet.addRow(['Phone', applicantInfo.phone]);
+        worksheet.addRow(['Nationality', applicantInfo.nationality]);
+        worksheet.addRow(['']);
+        
+        // Add program info
+        worksheet.addRow(['Program Information']);
+        worksheet.addRow(['Program Name', programInfo.programName]);
+        worksheet.addRow(['School', programInfo.schoolName]);
+        worksheet.addRow(['Degree', programInfo.degree]);
+        worksheet.addRow(['Degree Level', programInfo.degreeLevel]);
+        worksheet.addRow(['Location', programInfo.location]);
+        worksheet.addRow(['']);
+        
+        // Add documents
+        worksheet.addRow(['Documents']);
+        worksheet.addRow(['Document Type', 'Filename', 'Status', 'Link']);
+        
+        documents.forEach(doc => {
+            const documentLink = doc.documentPath;
+            worksheet.addRow([
+                doc.documentType, 
+                doc.filename || 'No filename', 
+                doc.status || 'pending',
+                documentLink || 'No link available'
+            ]);
+            
+            // Make the link clickable in Excel
+            if (documentLink) {
+                // Get the row that was just added
+                const lastRow = worksheet.lastRow;
+                // Make the link cell a hyperlink (column D is index 4)
+                const linkCell = lastRow.getCell(4);
+                linkCell.value = { 
+                    text: 'View Document', 
+                    hyperlink: documentLink.startsWith('http') ? 
+                        documentLink : 
+                        `${process.env.BACKEND_URL || 'http://localhost:8000'}/${documentLink}`
+                };
+                linkCell.font = {
+                    color: { argb: '0000FF' },
+                    underline: true
+                };
+            }
+        });
+        
+        // Style the worksheet headers
+        const headerRow = worksheet.getRow(worksheet.rowCount - documents.length - 1);
+        headerRow.font = { bold: true };
+        
+        // Style the worksheet
+        worksheet.getColumn(1).width = 25;
+        worksheet.getColumn(2).width = 50;
+        
+        // Generate buffer
+        const buffer = await workbook.xlsx.writeBuffer();
+        
+        return messageHandler(
+            'Excel file generated successfully',
+            true,
+            200,
+            { buffer, filename: `Application_${applicationId}.xlsx` }
+        );
+    } catch (error) {
+        console.error('Export application error:', error);
+        return messageHandler(
+            error.message || 'Failed to export application',
+            false,
+            500
+        );
+    }
+};
+
+export const notifyApplicantService = async (applicationId, applicationType, notificationType, message) => {
+    try {
+        let application;
+        let applicantInfo;
+        let programInfo;
+        
+        // Get application based on type
+        if (applicationType === 'direct') {
+            application = await Application.findByPk(applicationId, {
+                include: [
+                    { model: Member, as: 'applicationMember' },
+                    { model: Program, as: 'program' }
+                ]
+            });
+            
+            if (!application) {
+                return messageHandler('Application not found', false, 404);
+            }
+            
+            applicantInfo = application.applicationMember;
+            programInfo = application.program;
+            
+        } else if (applicationType === 'agent') {
+            application = await AgentApplication.findByPk(applicationId, {
+                include: [
+                    { model: AgentStudent, as: 'student' },
+                    { model: Agent, as: 'agent' },
+                    { model: Program, as: 'program' }
+                ]
+            });
+            
+            if (!application) {
+                return messageHandler('Application not found', false, 404);
+            }
+            
+            applicantInfo = application.student;
+            programInfo = application.program;
+        } else {
+            return messageHandler('Invalid application type', false, 400);
+        }
+        
+        // Determine email template and subject based on notification type
+        let template, subject, emailContext;
+        
+        switch(notificationType) {
+            case 'status_update':
+                template = 'applicationStatusUpdate';
+                subject = `Application Status Update - ${programInfo.programName}`;
+                emailContext = {
+                    name: `${applicantInfo.firstname} ${applicantInfo.lastname}`,
+                    programName: programInfo.programName,
+                    schoolName: programInfo.schoolName,
+                    applicationId: application.applicationId,
+                    status: application.applicationStatus,
+                    message: message || 'Your application status has been updated.',
+                    loginUrl: process.env.FRONTEND_URL + '/login'
+                };
+                break;
+                
+            case 'document_request':
+                template = 'applicationStatusUpdate';
+                subject = `Document Request - ${programInfo.programName} Application`;
+                emailContext = {
+                    name: `${applicantInfo.firstname} ${applicantInfo.lastname}`,
+                    programName: programInfo.programName,
+                    schoolName: programInfo.schoolName,
+                    applicationId: application.applicationId,
+                    status: application.applicationStatus,
+                    message: message || 'Please provide additional documents for your application.',
+                    loginUrl: process.env.FRONTEND_URL + '/login'
+                };
+                break;
+                
+            case 'custom':
+                template = 'applicationStatusUpdate';
+                subject = `Update on Your ${programInfo.programName} Application`;
+                emailContext = {
+                    name: `${applicantInfo.firstname} ${applicantInfo.lastname}`,
+                    programName: programInfo.programName,
+                    schoolName: programInfo.schoolName,
+                    applicationId: application.applicationId,
+                    status: application.applicationStatus,
+                    message: message || 'There is an update on your application.',
+                    loginUrl: process.env.FRONTEND_URL + '/login'
+                };
+                break;
+                
+            default:
+                return messageHandler('Invalid notification type', false, 400);
+        }
+        
+        // Send email
+        await sendEmail({
+            to: applicantInfo.email,
+            subject,
+            template,
+            context: emailContext
+        });
+        
+        return messageHandler(
+            'Notification sent successfully',
+            true,
+            200
+        );
+    } catch (error) {
+        console.error('Notify applicant error:', error);
+        return messageHandler(
+            error.message || 'Failed to send notification',
+            false,
+            500
+        );
+    }
+};
+
+export const updateApplicationIntakeService = async (applicationId, applicationType, intake) => {
+    try {
+        let application;
+        
+        if (applicationType === 'direct') {
+            application = await Application.findByPk(applicationId);
+            
+            if (!application) {
+                return messageHandler('Application not found', false, 404);
+            }
+            
+            await application.update({ 
+                intake,
+                applicationStatusDate: new Date() // Update status date to track the change
+            });
+        } else if (applicationType === 'agent') {
+            application = await AgentApplication.findByPk(applicationId);
+            
+            if (!application) {
+                return messageHandler('Application not found', false, 404);
+            }
+            
+            await application.update({ 
+                intake,
+                applicationStatusDate: new Date() // Update status date to track the change
+            });
+        } else {
+            return messageHandler('Invalid application type', false, 400);
+        }
+        
+        // Create notification
+        await createNotification({
+            userId: applicationType === 'direct' ? application.memberId : application.agentId,
+            userType: applicationType === 'direct' ? 'member' : 'agent',
+            type: 'application',
+            title: 'Application Intake Updated',
+            message: `Your application intake has been updated to ${intake}`,
+            link: `/${applicationType === 'direct' ? 'member' : 'agent'}/applications/${applicationId}`,
+            priority: 1,
+            metadata: {
+                applicationId,
+                applicationType,
+                oldIntake: application.intake,
+                newIntake: intake
+            }
+        });
+        
+        return messageHandler(
+            'Application intake updated successfully',
+            true,
+            200,
+            application
+        );
+    } catch (error) {
+        console.error('Update application intake error:', error);
+        return messageHandler(
+            error.message || 'Failed to update application intake',
             false,
             500
         );

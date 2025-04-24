@@ -9,6 +9,8 @@ import walletRouter from './wallet/wallet.js';
 import referralRouter from './referral/referral.js';
 import adminRouter from './admin/index.js';
 import messageRouter from './message/index.js';
+import adminGroupRouter from './adminMessage/adminGroupRoutes.js';
+import adminMessageRouter from './adminMessage/index.js';
 
 const router = (app) => {
     const API_PREFIX = '/api/v1';
@@ -22,6 +24,8 @@ const router = (app) => {
     app.use(`${API_PREFIX}/referral`, referralRouter);
     app.use(`${API_PREFIX}/admin`, adminRouter);
     app.use(`${API_PREFIX}/message`, messageRouter);
+    app.use(`${API_PREFIX}/adminMessage`, adminGroupRouter);
+    app.use(`${API_PREFIX}/adminMessage`, adminMessageRouter);
 };
 
 export default router;

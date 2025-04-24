@@ -5,7 +5,8 @@ import {
     updateProgramService, 
     deleteProgramService,
     searchProgramsService,
-    filterProgramsService
+    filterProgramsService,
+    toggleProgramStatusService
 } from '../service/programService.js';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
@@ -108,8 +109,21 @@ export const filterProgramsController = async (req, res) => {
             data: response.data
         });
     });
-}; 
+};
 
+// Toggle Program Status Controller
+export const toggleProgramStatusController = async (req, res) => {
+    const programId = req.params.id;
+    const { status } = req.body; // Boolean: true to activate, false to deactivate
+    
+    await toggleProgramStatusService(programId, status, (response) => {
+        return res.status(response.statusCode).json({
+            success: response.success,
+            message: response.message,
+            data: response.data
+        });
+    });
+};
 
 export const createProgram = (req, res) => {
     createProgramService(req.body, (response) => {

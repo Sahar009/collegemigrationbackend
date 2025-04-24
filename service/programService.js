@@ -7,6 +7,19 @@ import { generateCacheKey, setCache, getCache, clearCache } from '../utils/cache
 // Create Program Service
 export const createProgramService = async (data, callback) => {
     try {
+        // Validate category
+        const validCategories = [
+            'undergraduate', 'postgraduate', 'phd',
+            '1-Year Certificate', '2-Year Diploma', '3-Year Advanced Diploma',
+            '3-Year Bachelor', 'Top-up Degree', '4-Year Bachelor',
+            'Integrated Masters', 'Postgraduate Certificate', 'Postgraduate Diploma',
+            'Masters Degree', 'Doctoral/PhD', 'Non-Credential'
+        ];
+        
+        if (!validCategories.includes(data.category)) {
+            return callback(messageHandler("Invalid program category", false, BAD_REQUEST));
+        }
+        
         const newProgram = await Program.create({
             programName: data.programName,
             degree: data.degree,
@@ -15,6 +28,7 @@ export const createProgramService = async (data, callback) => {
             language: data.language,
             semesters: data.semesters,
             fee: data.fee,
+            feeCurrency: data.feeCurrency || 'USD',
             location: data.location,
             about: data.about || null,
             category: data.category,
@@ -70,7 +84,8 @@ export const getAllProgramsService = async (query, callback) => {
             limit = 10,
             page = 1,
             category,
-            countries
+            countries,
+            isActive
         } = query;
 
         // Build where clause
@@ -92,6 +107,11 @@ export const getAllProgramsService = async (query, callback) => {
         if (location) whereClause.location = location;
         if (category) whereClause.category = category;
         if (countries) whereClause.location = { [Op.like]: `%${countries}%` };
+
+        // Add isActive filter if specified
+        if (isActive !== undefined) {
+            whereClause.isActive = isActive === 'true' || isActive === true;
+        }
 
         // Calculate offset for pagination
         const offset = (page - 1) * limit;
@@ -310,6 +330,36 @@ export const filterProgramsService = async (filters, callback) => {
         console.error('Filter programs error:', error);
         return callback(
             messageHandler("An error occurred while filtering programs", false, BAD_REQUEST)
+        );
+    }
+};
+
+// Toggle Program Status Service (activate/deactivate)
+export const toggleProgramStatusService = async (programId, status, callback) => {
+    try {
+        const program = await Program.findByPk(programId);
+
+        if (!program) {
+            return callback(
+                messageHandler("Program not found", false, NOT_FOUND)
+            );
+        }
+
+        // Update status
+        await program.update({ isActive: status });
+        
+        // Clear caches
+        await clearCache(`program:${programId}`);
+        await clearCache('programs:*');
+
+        const statusMessage = status ? "activated" : "deactivated";
+        return callback(
+            messageHandler(`Program ${statusMessage} successfully`, true, SUCCESS, program)
+        );
+    } catch (error) {
+        console.error('Toggle program status error:', error);
+        return callback(
+            messageHandler("An error occurred while updating program status", false, BAD_REQUEST)
         );
     }
 }; 

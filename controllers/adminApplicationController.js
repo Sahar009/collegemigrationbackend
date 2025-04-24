@@ -1,6 +1,7 @@
 import * as adminApplicationService from '../service/adminApplicationService.js';
 import { messageHandler } from '../utils/index.js';
 import { BAD_REQUEST } from '../constants/statusCode.js';
+import ExcelJS from 'exceljs';
 
 // Get all applications
 export const getAllApplications = async (req, res) => {
@@ -168,5 +169,83 @@ export const sendApplicationToSchool = async (req, res) => {
                 500
             )
         );
+    }
+};
+
+export const exportApplicationToExcel = async (req, res) => {
+    try {
+        const { id: applicationId } = req.params;
+        const { applicationType } = req.query;
+        
+        const result = await adminApplicationService.exportApplicationToExcelService(applicationId, applicationType);
+        
+        if (!result.success) {
+            return res.status(result.statusCode).json(result);
+        }
+        
+        // Set headers for file download
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${result.data.filename}"`);
+        
+        // Send buffer
+        return res.send(Buffer.from(result.data.buffer));
+    } catch (error) {
+        console.error('Export to Excel error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to export application to Excel'
+        });
+    }
+};
+
+export const notifyApplicant = async (req, res) => {
+    try {
+        const { id: applicationId } = req.params;
+        const { applicationType, notificationType, message } = req.body;
+        
+        const result = await adminApplicationService.notifyApplicantService(
+            applicationId, 
+            applicationType, 
+            notificationType, 
+            message
+        );
+        
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Notification error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to send notification'
+        });
+    }
+};
+
+export const updateApplicationIntake = async (req, res) => {
+    try {
+        const { id: applicationId } = req.params;
+        const { applicationType, intake } = req.body;
+        
+        if (!applicationId || !applicationType || !intake) {
+            return res.status(400).json({
+                success: false,
+                message: 'Application ID, type, and intake are required',
+                statusCode: 400
+            });
+        }
+        
+        const result = await adminApplicationService.updateApplicationIntakeService(
+            applicationId,
+            applicationType,
+            intake
+        );
+        
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Update intake error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to update intake',
+            statusCode: 500
+        });
     }
 }; 

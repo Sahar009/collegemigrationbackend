@@ -207,7 +207,7 @@ export const getApplicationStatusService = async (memberId, applicationId, callb
             include: [
                 {
                     model: ApplicationDocument,
-                    as: 'applicationDocument',
+                    as: 'applicationDocuments',
                     attributes: ['documentId', 'documentType', 'documentPath', 'uploadDate', 'status']
                 },
                 {

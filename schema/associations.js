@@ -8,6 +8,9 @@ import AgentStudentDocument from './AgentStudentDocumentSchema.js';
 import AgentApplication from './AgentApplicationSchema.js';
 import AgentTransaction from './AgentTransactionSchema.js';
 import Referral from './ReferralSchema.js';
+import Admin from './AdminSchema.js';
+import AdminMessage from './AdminMessageSchema.js';
+import AdminGroup from './AdminGroupSchema.js';
 
 // Define all associations
 export const setupAssociations = () => {
@@ -165,6 +168,49 @@ export const setupAssociations = () => {
     AgentTransaction.belongsTo(Agent, {
         foreignKey: 'agentId',
         as: 'agent'
+    });
+
+    // AdminMessage associations
+    AdminMessage.belongsTo(Admin, {
+        foreignKey: 'senderId',
+        as: 'sender'
+    });
+
+    AdminMessage.belongsTo(Admin, {
+        foreignKey: 'receiverId',
+        as: 'receiver'
+    });
+
+    AdminMessage.belongsTo(AdminGroup, {
+        foreignKey: 'groupId',
+        as: 'group'
+    });
+
+    // AdminGroup associations
+    AdminGroup.belongsTo(Admin, {
+        foreignKey: 'createdBy',
+        as: 'creator'
+    });
+
+    AdminGroup.hasMany(AdminMessage, {
+        foreignKey: 'groupId',
+        as: 'messages'
+    });
+
+    // Admin associations
+    Admin.hasMany(AdminMessage, {
+        foreignKey: 'senderId',
+        as: 'sentMessages'
+    });
+
+    Admin.hasMany(AdminMessage, {
+        foreignKey: 'receiverId',
+        as: 'receivedMessages'
+    });
+
+    Admin.hasMany(AdminGroup, {
+        foreignKey: 'createdBy',
+        as: 'createdGroups'
     });
 };
 

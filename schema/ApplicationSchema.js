@@ -32,7 +32,7 @@ const Application = sequelize.define('Application', {
         defaultValue: 'Unpaid'
     },
     applicationStatus: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(30),
         defaultValue: 'Pending'
     },
     intake: {
