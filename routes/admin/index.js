@@ -34,6 +34,7 @@ import * as adminNotificationController from '../../controllers/adminNotificatio
 import * as adminWithdrawalController from '../../controllers/adminWithdrawalController.js';
 import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
 import { toggleProgramStatusController } from '../../controllers/programController.js';
+import * as referralController from '../../controllers/referralController.js';
 const adminRouter = express.Router();
 
 // Auth routes (public)
@@ -156,4 +157,8 @@ adminRouter.post(
     authenticateAdmin,
     adminApplicationController.notifyApplicant
 );
+
+// Referral routes
+adminRouter.get('/referrals', asyncHandler(referralController.getAdminReferrals));
+
 export default adminRouter; 

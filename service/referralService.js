@@ -395,3 +395,138 @@ const getAgentReferrals = async (agentId) => {
         throw error;
     }
 };
+
+export const getAdminReferralsService = async ({ page = 1, limit = 10, status, referrerType, startDate, endDate }) => {
+    try {
+        const whereClause = {};
+        
+        // Add filters if provided
+        if (status && status !== 'all') {
+            whereClause.status = status;
+        }
+        
+        if (referrerType && referrerType !== 'all') {
+            whereClause.referrerType = referrerType;
+        }
+        
+        if (startDate && endDate) {
+            whereClause.createdAt = {
+                [Op.between]: [new Date(startDate), new Date(endDate)]
+            };
+        }
+
+        // Get referrals with referred member info
+        const { count, rows: referrals } = await Referral.findAndCountAll({
+            where: whereClause,
+            include: [
+                {
+                    model: Member,
+                    as: 'referredMember',
+                    attributes: ['memberId', 'firstname', 'lastname', 'email', 'phone', 'createdAt']
+                }
+            ],
+            order: [['createdAt', 'DESC']],
+            limit: parseInt(limit),
+            offset: (parseInt(page) - 1) * parseInt(limit)
+        });
+
+        // Get applications for each referred member
+        const referralIds = referrals.map(ref => ref.memberId);
+        const applications = await Application.findAll({
+            where: {
+                memberId: {
+                    [Op.in]: referralIds
+                }
+            },
+            attributes: ['memberId', 'applicationId', 'applicationStatus', 'paymentStatus', 'applicationDate']
+        });
+
+        // Create a map of memberId to applications
+        const applicationMap = applications.reduce((acc, app) => {
+            if (!acc[app.memberId]) {
+                acc[app.memberId] = [];
+            }
+            acc[app.memberId].push(app);
+            return acc;
+        }, {});
+
+        // Get referrer details separately
+        const referrerPromises = referrals.map(async (referral) => {
+            if (referral.referrerType === 'Agent') {
+                const agent = await Agent.findByPk(referral.referrerId, {
+                    attributes: ['agentId', 'companyName', 'email', 'phone']
+                });
+                return {
+                    ...referral.toJSON(),
+                    referringAgent: agent
+                };
+            } else {
+                const member = await Member.findByPk(referral.referrerId, {
+                    attributes: ['memberId', 'firstname', 'lastname', 'email', 'phone']
+                });
+                return {
+                    ...referral.toJSON(),
+                    referringMember: member
+                };
+            }
+        });
+
+        const referralsWithReferrers = await Promise.all(referrerPromises);
+
+        // Format the data for better readability
+        const formattedReferrals = referralsWithReferrers.map(referral => ({
+            referralId: referral.referralId,
+            referralCode: referral.referralCode,
+            status: referral.status,
+            createdAt: referral.createdAt,
+            statusDate: referral.statusDate,
+            referrerType: referral.referrerType,
+            
+            // Referrer details
+            referrer: referral.referrerType === 'Agent' 
+                ? {
+                    type: 'Agent',
+                    id: referral.referringAgent?.agentId,
+                    name: referral.referringAgent?.companyName,
+                    email: referral.referringAgent?.email,
+                    phone: referral.referringAgent?.phone
+                }
+                : {
+                    type: 'Member',
+                    id: referral.referringMember?.memberId,
+                    name: `${referral.referringMember?.firstname} ${referral.referringMember?.lastname}`,
+                    email: referral.referringMember?.email,
+                    phone: referral.referringMember?.phone
+                },
+            
+            // Referred member details
+            referredMember: {
+                id: referral.referredMember?.memberId,
+                name: `${referral.referredMember?.firstname} ${referral.referredMember?.lastname}`,
+                email: referral.referredMember?.email,
+                phone: referral.referredMember?.phone,
+                registrationDate: referral.referredMember?.createdAt,
+                applications: applicationMap[referral.memberId] || []
+            }
+        }));
+
+        return messageHandler('Referrals retrieved successfully', true, 200, {
+            referrals: formattedReferrals,
+            pagination: {
+                totalItems: count,
+                totalPages: Math.ceil(count / limit),
+                currentPage: parseInt(page),
+                pageSize: parseInt(limit)
+            },
+            summary: {
+                totalReferrals: count,
+                totalPaidReferrals: referrals.filter(r => r.status === 'paid').length,
+                totalUnpaidReferrals: referrals.filter(r => r.status === 'unpaid').length
+            }
+        });
+
+    } catch (error) {
+        console.error('Admin referral service error:', error);
+        throw error;
+    }
+};
