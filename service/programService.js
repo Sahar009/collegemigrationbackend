@@ -39,8 +39,12 @@ export const createProgramService = async (data, callback) => {
             applicationDeadline: data.applicationDeadline
         });
         
-        // Clear all program caches when a new program is created
-        await clearCache('programs:*');
+        // Clear ALL program-related caches
+        await Promise.all([
+            clearCache('programs:*'),      // Clear all paginated program lists
+            clearCache('programs:search:*'), // Clear all search results
+            clearCache('programs:filter:*')  // Clear all filter results
+        ]);
 
         return callback(messageHandler(
             "Program created successfully", 
@@ -207,9 +211,13 @@ export const updateProgramService = async (programId, data, callback) => {
         // Update program
         await program.update(data);
         
-        // Clear specific program cache and all programs cache
-        await clearCache(`program:${programId}`);
-        await clearCache('programs:*');
+        // Clear ALL program-related caches
+        await Promise.all([
+            clearCache(`program:${programId}`),  // Clear specific program
+            clearCache('programs:*'),            // Clear all program lists
+            clearCache('programs:search:*'),     // Clear all search results
+            clearCache('programs:filter:*')      // Clear all filter results
+        ]);
 
         return callback(
             messageHandler("Program updated successfully", true, SUCCESS, program)
@@ -237,9 +245,13 @@ export const deleteProgramService = async (programId, callback) => {
         // Delete program
         await program.destroy();
         
-        // Clear specific program cache and all programs cache
-        await clearCache(`program:${programId}`);
-        await clearCache('programs:*');
+        // Clear ALL program-related caches
+        await Promise.all([
+            clearCache(`program:${programId}`),  // Clear specific program
+            clearCache('programs:*'),            // Clear all program lists
+            clearCache('programs:search:*'),     // Clear all search results
+            clearCache('programs:filter:*')      // Clear all filter results
+        ]);
 
         return callback(
             messageHandler("Program deleted successfully", true, SUCCESS)
@@ -348,9 +360,13 @@ export const toggleProgramStatusService = async (programId, status, callback) =>
         // Update status
         await program.update({ isActive: status });
         
-        // Clear caches
-        await clearCache(`program:${programId}`);
-        await clearCache('programs:*');
+        // Clear ALL program-related caches
+        await Promise.all([
+            clearCache(`program:${programId}`),  // Clear specific program
+            clearCache('programs:*'),            // Clear all program lists
+            clearCache('programs:search:*'),     // Clear all search results
+            clearCache('programs:filter:*')      // Clear all filter results
+        ]);
 
         const statusMessage = status ? "activated" : "deactivated";
         return callback(
