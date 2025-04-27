@@ -27,7 +27,8 @@ export const sendAdminMessage = async (messageData, files) => {
 
         const message = await AdminMessage.create({
             ...messageData,
-            attachments
+            attachments,
+            readBy: [messageData.senderId] // Initialize readBy with sender
         });
 
         return messageHandler('Message sent', true, 201, message);
@@ -39,14 +40,18 @@ export const sendAdminMessage = async (messageData, files) => {
 
 export const getAdminConversation = async (senderId, receiverId) => {
     try {
-      if (isNaN(senderId) || isNaN(receiverId)) {
-            return messageHandler('Invalid user IDs', false, 400);
+        // Convert to numbers immediately
+        const parsedSender = Number(senderId);
+        const parsedReceiver = Number(receiverId);
+
+        if (!Number.isInteger(parsedSender) || !Number.isInteger(parsedReceiver)) {
+            return messageHandler('Invalid user ID format', false, 400);
         }
 
         // Verify both users exist
         const [sender, receiver] = await Promise.all([
-            Admin.findByPk(senderId),
-            Admin.findByPk(receiverId)
+            Admin.findByPk(parsedSender),
+            Admin.findByPk(parsedReceiver)
         ]);
 
         if (!sender || !receiver) {
@@ -57,13 +62,13 @@ export const getAdminConversation = async (senderId, receiverId) => {
             where: {
                 [Op.or]: [
                     {
-                        senderId: senderId,
-                        receiverId: receiverId,
+                        senderId: parsedSender,
+                        receiverId: parsedReceiver,
                         isGroupMessage: false
                     },
                     {
-                        senderId: receiverId,
-                        receiverId: senderId,
+                        senderId: parsedReceiver,
+                        receiverId: parsedSender,
                         isGroupMessage: false
                     }
                 ]
@@ -85,14 +90,14 @@ export const getAdminConversation = async (senderId, receiverId) => {
 
         // Mark messages as read
         const unreadMessages = messages.filter(
-            msg => msg.receiverId === parseInt(senderId) && !msg.readBy?.includes(parseInt(senderId))
+            msg => msg.receiverId === parsedSender && !msg.readBy?.includes(parsedSender)
         );
 
         if (unreadMessages.length > 0) {
             await Promise.all(unreadMessages.map(async (msg) => {
                 const readBy = msg.readBy || [];
-                if (!readBy.includes(parseInt(senderId))) {
-                    readBy.push(parseInt(senderId));
+                if (!readBy.includes(parsedSender)) {
+                    readBy.push(parsedSender);
                     await msg.update({ readBy });
                 }
             }));
@@ -160,12 +165,13 @@ export const createAdminGroup = async (groupData) => {
 
 export const getAdminConversations = async (adminId) => {
     try {
+        const numericAdminId = Number(adminId);
         // First get all messages where the admin is either sender or receiver
         const messages = await AdminMessage.findAll({
             where: {
                 [Op.or]: [
-                    { senderId: adminId },
-                    { receiverId: adminId }
+                    { senderId: numericAdminId },
+                    { receiverId: numericAdminId }
                 ],
                 isGroupMessage: false
             },
@@ -188,8 +194,8 @@ export const getAdminConversations = async (adminId) => {
         const conversationsMap = new Map();
 
         messages.forEach(message => {
-            const partnerId = message.senderId === adminId ? message.receiverId : message.senderId;
-            const partner = message.senderId === adminId ? message.receiver : message.sender;
+            const partnerId = message.senderId === numericAdminId ? message.receiverId : message.senderId;
+            const partner = message.senderId === numericAdminId ? message.receiver : message.sender;
 
             if (!conversationsMap.has(partnerId)) {
                 conversationsMap.set(partnerId, {
@@ -197,9 +203,9 @@ export const getAdminConversations = async (adminId) => {
                     partnerName: partner?.fullName || 'Unknown',
                     lastMessage: message.message,
                     timestamp: message.createdAt,
-                    unreadCount: message.receiverId === adminId && !message.readBy?.includes(adminId) ? 1 : 0
+                    unreadCount: message.receiverId === numericAdminId && !message.readBy?.includes(numericAdminId) ? 1 : 0
                 });
-            } else if (message.receiverId === adminId && !message.readBy?.includes(adminId)) {
+            } else if (message.receiverId === numericAdminId && !message.readBy?.includes(numericAdminId)) {
                 const conv = conversationsMap.get(partnerId);
                 conv.unreadCount += 1;
             }

@@ -56,22 +56,20 @@ export const getAllAdmins = async () => {
 
 export const markMessageAsRead = async (messageId, adminId) => {
     try {
-        await AdminMessage.update(
-            {
-                readBy: sequelize.fn(
-                    'JSON_ARRAY_APPEND',
-                    sequelize.col('readBy'),
-                    '$',
-                    adminId
-                )
-            },
-            {
-                where: { messageId },
-                returning: true
-            }
-        );
+        const message = await AdminMessage.findByPk(messageId);
+        if (!message) {
+            throw new Error('Message not found');
+        }
+
+        // Check if message is already read by this admin
+        const readBy = message.readBy || [];
+        if (!readBy.includes(adminId)) {
+            await message.update({
+                readBy: [...readBy, adminId]
+            });
+        }
         
-        return AdminMessage.findByPk(messageId);
+        return message;
     } catch (error) {
         throw error;
     }
@@ -81,7 +79,7 @@ export const getUnreadMessages = async (adminId) => {
     try {
         const groups = await AdminGroup.findAll({
             where: sequelize.literal(
-                `JSON_CONTAINS(members, CAST('${adminId}' AS JSON), '$')`
+                `JSON_CONTAINS(members, JSON_ARRAY(${adminId}))`
             ),
             attributes: ['groupId']
         });
@@ -94,9 +92,11 @@ export const getUnreadMessages = async (adminId) => {
                     { receiverId: adminId },
                     { groupId: { [Op.in]: groupIds } }
                 ],
-                [Op.not]: sequelize.literal(
-                    `JSON_CONTAINS(readBy, CAST('${adminId}' AS JSON), '$')`
-                )
+                [Op.and]: [
+                    sequelize.literal(
+                        `(readBy IS NULL OR NOT JSON_CONTAINS(readBy, JSON_ARRAY(${adminId})))`
+                    )
+                ]
             },
             include: [
                 {

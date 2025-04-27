@@ -35,6 +35,8 @@ import * as adminWithdrawalController from '../../controllers/adminWithdrawalCon
 import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
 import { toggleProgramStatusController } from '../../controllers/programController.js';
 import * as referralController from '../../controllers/referralController.js';
+import { getTuitionPaymentsController } from '../../controllers/tuitionPaymentController.js';
+import { updateExchangeRate } from '../../controllers/paymentConfigController.js';
 const adminRouter = express.Router();
 
 // Auth routes (public)
@@ -160,5 +162,16 @@ adminRouter.post(
 
 // Referral routes
 adminRouter.get('/referrals', asyncHandler(referralController.getAdminReferrals));
+
+// Payment routes
+adminRouter.get('/payments', 
+    authenticateAdmin,
+    getTuitionPaymentsController
+);
+// Exchange rate management (admin only)
+adminRouter.put('/exchange-rate',
+    authenticateAdmin,
+    updateExchangeRate
+);
 
 export default adminRouter; 

@@ -32,8 +32,20 @@ export const sendMessage = async (req, res) => {
 
 export const getConversation = async (req, res) => {
     try {
-        const { receiverId } = req.body;
-        const senderId = req.user.adminId; // Get senderId from authenticated user
+        const { receiverId } = req.params;
+        const senderId = req.user.adminId; // Changed from req.user.id
+
+        // Add explicit number validation
+        if (isNaN(senderId) || isNaN(receiverId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid ID format - must be numeric'
+            });
+        }
+
+        // Convert to numbers
+        const parsedSender = Number(senderId);
+        const parsedReceiver = Number(receiverId);
 
         console.log('Request params:', { receiverId });
         console.log('Authenticated sender:', senderId);
@@ -45,12 +57,8 @@ export const getConversation = async (req, res) => {
             });
         }
 
-        // Convert IDs to numbers for consistent comparison
-        const senderIdNum = parseInt(senderId);
-        const receiverIdNum = parseInt(receiverId);
-
         // Don't allow conversation with self
-        if (senderIdNum === receiverIdNum) {
+        if (parsedSender === parsedReceiver) {
             return res.status(400).json({
                 success: false,
                 message: 'Cannot start conversation with yourself'
@@ -58,8 +66,8 @@ export const getConversation = async (req, res) => {
         }
 
         const result = await getAdminConversation(
-            senderIdNum,
-            receiverIdNum
+            parsedSender,
+            parsedReceiver
         );
         
         return res.status(result.statusCode).json(result);
@@ -88,7 +96,7 @@ export const getGroupMessages = async (req, res) => {
 export const createGroup = async (req, res) => {
     try {
         const { groupName, description, members } = req.body;
-        const createdBy = Number(req.user.adminId); // Convert to number explicitly
+        const createdBy = req.user.adminId; // Changed from req.user.id
 
         if (!req.user || !req.user.adminId) {
             console.error('No user found in request:', req.user);

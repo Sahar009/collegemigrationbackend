@@ -11,6 +11,7 @@ import adminRouter from './admin/index.js';
 import messageRouter from './message/index.js';
 import adminGroupRouter from './adminMessage/adminGroupRoutes.js';
 import adminMessageRouter from './adminMessage/index.js';
+import tuitionRouter from './payment/tuitionRoutes.js';
 
 const router = (app) => {
     const API_PREFIX = '/api/v1';

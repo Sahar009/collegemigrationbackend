@@ -11,6 +11,8 @@ import Referral from './ReferralSchema.js';
 import Admin from './AdminSchema.js';
 import AdminMessage from './AdminMessageSchema.js';
 import AdminGroup from './AdminGroupSchema.js';
+import TuitionPayment from './TuitionPaymentSchema.js';
+import { Transaction } from './transactionSchema.js';
 
 // Define all associations
 export const setupAssociations = () => {
@@ -212,6 +214,37 @@ export const setupAssociations = () => {
         foreignKey: 'createdBy',
         as: 'createdGroups'
     });
+
+    // TuitionPayment associations
+    TuitionPayment.belongsTo(Member, {
+        foreignKey: 'memberId',
+        as: 'member'
+    });
+
+    Member.hasMany(TuitionPayment, {
+        foreignKey: 'memberId',
+        as: 'tuitionPayments'
+    });
+
+    TuitionPayment.belongsTo(Application, {
+        foreignKey: 'applicationId',
+        as: 'application'
+    });
+
+    Application.hasMany(TuitionPayment, {
+        foreignKey: 'applicationId',
+        as: 'tuitionPayments'
+    });
+
+    TuitionPayment.belongsTo(Transaction, {
+        foreignKey: 'transactionId',
+        as: 'transaction'
+    });
+
+    Transaction.hasOne(TuitionPayment, {
+        foreignKey: 'transactionId',
+        as: 'tuitionPayment'
+    });
 };
 
 // Make sure we're exporting the function properly
@@ -221,5 +254,7 @@ export default setupAssociations;
 export {
     Member,
     Referral,
-    Agent
+    Agent,
+    TuitionPayment,
+    Transaction
 }; 
