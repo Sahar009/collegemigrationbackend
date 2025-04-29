@@ -53,11 +53,21 @@ export const initiateAgentPayment = async (agentId, data) => {
     try {
         console.log('Payment initiation data:', data);
 
+        // Validate required fields
+        if (!data.applicationId || !data.memberId || !data.amount || !data.agentId) {
+            return messageHandler(
+                'Missing required fields: applicationId, memberId, amount, and agentId are required',
+                false,
+                400
+            );
+        }
+
         // Check for existing pending transaction
         const existingTransaction = await AgentTransaction.findOne({
             where: {
                 applicationId: data.applicationId,
                 memberId: data.memberId,
+                agentId: data.agentId,
                 status: 'pending'
             }
         });
@@ -118,6 +128,7 @@ export const initiateAgentPayment = async (agentId, data) => {
             transactionId: uuidv4(),
             applicationId: data.applicationId,
             memberId: data.memberId,
+            agentId: data.agentId,
             amount: parseFloat(data.amount),
             currency: (data.currency || 'NGN').toUpperCase(),
             amountInUSD: parseFloat(data.amount),

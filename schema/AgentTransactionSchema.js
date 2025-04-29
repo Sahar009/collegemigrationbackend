@@ -6,6 +6,14 @@ const AgentTransaction = sequelize.define('AgentTransaction', {
         type: DataTypes.STRING,
         primaryKey: true
     },
+    agentId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'agents',
+            key: 'agentId'
+        }
+    },
     applicationId: {
         type: DataTypes.INTEGER,
         allowNull: false,
