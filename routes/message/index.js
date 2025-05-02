@@ -38,10 +38,6 @@ messageRouter.get('/conversations',
 
 messageRouter.get('/agent/conversations', 
   authenticateUser,
-  (req, res, next) => {
-    if (req.user.type !== 'agent') return res.status(403).json({ message: 'Access denied' });
-    next();
-  },
   async (req, res) => {
     try {
       const result = await getAllConversations(req.user.id, 'agent');
