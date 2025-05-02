@@ -1,0 +1,126 @@
+{
+	"info": {
+		"_postman_id": "your-collection-id",
+		"name": "Message API",
+		"description": "Collection for testing Message API endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get Agent Conversations",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/message/agent/conversations",
+					"host": ["{{base_url}}"],
+					"path": ["message", "agent", "conversations"]
+				}
+			}
+		},
+		{
+			"name": "Get Conversation Thread",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/message/agent/messages/{{partner_id}}?partnerType={{partner_type}}",
+					"host": ["{{base_url}}"],
+					"path": ["message", "agent", "messages", "{{partner_id}}"],
+					"query": [
+						{
+							"key": "partnerType",
+							"value": "{{partner_type}}"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Send Message",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"receiverId\": {{receiver_id}},\n    \"receiverType\": \"{{receiver_type}}\",\n    \"message\": \"{{message}}\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/message/messages",
+					"host": ["{{base_url}}"],
+					"path": ["message", "messages"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "YOUR_JWT_TOKEN",
+			"type": "string"
+		},
+		{
+			"key": "partner_id",
+			"value": "123",
+			"type": "string"
+		},
+		{
+			"key": "partner_type",
+			"value": "member",
+			"type": "string"
+		},
+		{
+			"key": "receiver_id",
+			"value": "123",
+			"type": "string"
+		},
+		{
+			"key": "receiver_type",
+			"value": "member",
+			"type": "string"
+		},
+		{
+			"key": "message",
+			"value": "Hello, this is a test message",
+			"type": "string"
+		}
+	]
+} 

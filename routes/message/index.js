@@ -3,6 +3,7 @@ import { sendMessage, getConversation, getAllConversations } from '../../control
 import { authenticateUser } from '../../middlewares/auth-middleware.js';
 import { validateMessage } from '../../middlewares/validateMessage.js';
 import { messageAttachments, handleUploadError } from '../../middlewares/uploadMiddleware.js';
+import { getConversationThread } from '../../service/directMessageService.js';
 
 const messageRouter = express.Router();
 
@@ -38,6 +39,7 @@ messageRouter.get('/conversations',
 
 messageRouter.get('/agent/conversations', 
   authenticateUser,
+
   async (req, res) => {
     try {
       const result = await getAllConversations(req.user.id, 'agent');
@@ -85,15 +87,37 @@ messageRouter.get('/agent/messages/:partnerId',
   authenticateUser,
   async (req, res) => {
     try {
+      const { partnerId } = req.params;
+      const partnerType = req.query.partnerType || 'member'; // Default to 'member' if not specified
+      
+      // if (!partnerType || !['admin', 'agent', 'member', 'student'].includes(partnerType)) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: 'Invalid partner type. Must be one of: admin, agent, member, student'
+      //   });
+      // }
+
       const messages = await getConversationThread(
         req.user.id, 
         'agent',
-        req.params.partnerId,
-        req.query.partnerType
+        partnerId,
+        partnerType
       );
-      res.json(messages);
+      
+      if (messages.statusCode) {
+        return res.status(messages.statusCode).json(messages);
+      }
+      
+      return res.status(200).json({
+        success: true,
+        data: messages
+      });
     } catch (error) {
-      res.status(500).json({ message: 'Server error' });
+      console.error('Error fetching agent messages:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error' 
+      });
     }
   }
 );

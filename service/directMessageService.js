@@ -36,6 +36,17 @@ export const createDirectMessage = async (messageData, files) => {
 
 export const getConversationThread = async (userId, userType, otherId, otherType) => {
     try {
+        // Validate parameters
+        if (!userId || !userType || !otherId || !otherType) {
+            return messageHandler('Missing required parameters', false, 400);
+        }
+
+        // Validate user types
+        const validUserTypes = ['admin', 'agent', 'member', 'student'];
+        if (!validUserTypes.includes(userType) || !validUserTypes.includes(otherType)) {
+            return messageHandler('Invalid user type', false, 400);
+        }
+
         const messages = await DirectMessage.findAll({
             where: {
                 [Op.or]: [
@@ -56,7 +67,7 @@ export const getConversationThread = async (userId, userType, otherId, otherType
             order: [['createdAt', 'ASC']]
         });
 
-        return messageHandler('Conversation retrieved', true, 200, messages);
+        return messages;
     } catch (error) {
         console.error('Get conversation error:', error);
         return messageHandler('Failed to get conversation', false, 500);
