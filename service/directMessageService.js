@@ -109,7 +109,7 @@ export const getAllUserConversations = async (userId, userType) => {
         if (!partners || partners.length === 0) {
             return {
                 success: false,
-                statusCode: 404,
+                statusCode: 400,
                 message: 'No conversations found'
             };
         }
