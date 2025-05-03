@@ -8,7 +8,8 @@ export const initiateTuitionPaymentController = async (req, res) => {
             applicationId, 
             amount, 
             currency, 
-            paymentMethod 
+            paymentMethod,
+            applicationType = 'regular' // Add applicationType parameter
         } = req.body;
 
         // Validation
@@ -24,7 +25,8 @@ export const initiateTuitionPaymentController = async (req, res) => {
             amount: parseFloat(amount),
             currency: currency.toUpperCase(),
             paymentMethod,
-            email: req.user.email
+            email: req.user.email,
+            applicationType // Add applicationType to payment data
         };
 
         const result = await initiateTuitionPayment(paymentData);
@@ -80,4 +82,4 @@ export const verifyTuitionPaymentController = async (req, res) => {
             messageHandler(error.message || "Error verifying tuition payment", false, BAD_REQUEST)
         );
     }
-}; 
+};

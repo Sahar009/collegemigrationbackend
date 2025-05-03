@@ -6,30 +6,32 @@ import {
 } from '../service/directMessageService.js';
 
 export const sendMessage = async (req, res) => {
+    console.log('Message send request received:', req.body);
     try {
-      const isAgent = req.user.type === 'agent';
-      const receiverType = isAgent ? 'member' : req.body.receiverType;
-  
-      const result = await createDirectMessage(
-        {
-          senderId: req.user.id,
-          senderType: req.user.type,
-          receiverId: req.body.receiverId,
-          receiverType,
-          message: req.body.message
-        },
-        req.files?.attachments
-      );
-      
-      return res.status(result.statusCode).json(result);
+        const isAgent = req.user.type === 'agent';
+        const receiverType = isAgent ? 'member' : req.body.receiverType;
+        const senderType = req.user.type || 'admin'; // Ensure senderType is set
+
+        const result = await createDirectMessage(
+            {
+                senderId: req.user.id,
+                senderType: senderType, // Pass the senderType correctly
+                receiverId: req.body.receiverId,
+                receiverType,
+                message: req.body.message
+            },
+            req.files?.attachments
+        );
+        
+        return res.status(result.statusCode).json(result);
     } catch (error) {
-      console.error('Message send error:', error);
-      return res.status(500).json({
-        success: false,
-        message: error.message
-      });
+        console.error('Message send error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-  };
+};
 
 export const getConversation = async (req, res) => {
     try {
@@ -60,4 +62,4 @@ export const getAllConversations = async (userId, userType) => {
             message: error.message || 'Internal server error'
         };
     }
-}; 
+};

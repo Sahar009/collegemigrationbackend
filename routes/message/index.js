@@ -1,5 +1,7 @@
 import express from 'express';
 import { sendMessage, getConversation, getAllConversations } from '../../controllers/directMessageController.js'
+import { authenticateAdmin } from '../../middleware/adminAuthMiddleware.js';
+
 import { authenticateUser } from '../../middlewares/auth-middleware.js';
 import { validateMessage } from '../../middlewares/validateMessage.js';
 import { messageAttachments, handleUploadError } from '../../middlewares/uploadMiddleware.js';
@@ -14,8 +16,16 @@ messageRouter.post('/messages',
     handleUploadError,
     sendMessage
 );
+messageRouter.post('/admin/messages', 
+    authenticateAdmin,
+  // validateMessage,
+  messageAttachments,
+  handleUploadError,
+  sendMessage
+);
 
 messageRouter.get('/messages/:otherId/:otherType', authenticateUser, getConversation);
+messageRouter.get('/messages/admin/:otherId/:otherType', authenticateAdmin, getConversation);
 messageRouter.get('/conversations', 
   authenticateUser,
   async (req, res) => {
@@ -29,6 +39,28 @@ messageRouter.get('/conversations',
         data: result
       });
     } catch (error) {
+      console.log('Error in conversations route:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message || 'Server error' 
+      });
+    }
+  }
+);
+messageRouter.get('/admin/conversations', 
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const result = await getAllConversations(req.user.id, 'member');
+      if (result.statusCode) {
+        return res.status(result.statusCode).json(result);
+      }
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.log('Error in conversations route:', error);
       res.status(500).json({ 
         success: false, 
         message: error.message || 'Server error' 

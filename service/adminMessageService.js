@@ -12,8 +12,19 @@ export const sendAdminMessage = async (messageData, files) => {
             return messageHandler("Missing required fields", false, 400);
         }
 
-        // If it's a group message, validate group exists
-        if (messageData.isGroupMessage && messageData.groupId) {
+        // Convert isGroupMessage to boolean if it's a string
+        const isGroupMessage = messageData.isGroupMessage === 'true' || messageData.isGroupMessage === true;
+
+        // For direct messages, ensure receiverId is present
+        if (!isGroupMessage && !messageData.receiverId) {
+            return messageHandler("Receiver ID is required for direct messages", false, 400);
+        }
+
+        // For group messages, validate group exists
+        if (isGroupMessage) {
+            if (!messageData.groupId) {
+                return messageHandler("Group ID is required for group messages", false, 400);
+            }
             const group = await AdminGroup.findByPk(messageData.groupId);
             if (!group) {
                 return messageHandler("Group not found", false, 404);
@@ -25,11 +36,23 @@ export const sendAdminMessage = async (messageData, files) => {
             path: file.path
         })) || [];
 
-        const message = await AdminMessage.create({
-            ...messageData,
+        // Prepare message data
+        const messagePayload = {
+            senderId: messageData.senderId,
+            message: messageData.message,
             attachments,
-            readBy: [messageData.senderId] // Initialize readBy with sender
-        });
+            readBy: [messageData.senderId], // Initialize readBy with sender
+            isGroupMessage: isGroupMessage
+        };
+
+        // Add groupId or receiverId based on message type
+        if (isGroupMessage) {
+            messagePayload.groupId = messageData.groupId;
+        } else {
+            messagePayload.receiverId = messageData.receiverId;
+        }
+
+        const message = await AdminMessage.create(messagePayload);
 
         return messageHandler('Message sent', true, 201, message);
     } catch (error) {
@@ -102,7 +125,7 @@ export const getAdminConversation = async (senderId, receiverId) => {
                 }
             }));
         }
-
+        console.log(messages);
         return messageHandler('Conversation retrieved', true, 200, messages);
     } catch (error) {
         console.error('Get admin conversation error:', error);
@@ -240,5 +263,59 @@ export const getAdminGroups = async (adminId) => {
     } catch (error) {
         console.error('Get admin groups error:', error);
         return messageHandler('Failed to get groups', false, 500);
+    }
+};
+
+export const getUnreadMessages = async (adminId) => {
+    try {
+        // Validate adminId
+        if (!adminId || isNaN(adminId)) {
+            throw new Error('Invalid admin ID');
+        }
+
+        const numericAdminId = Number(adminId);
+
+        // Get groups where admin is a member using MySQL JSON_CONTAINS
+        const groups = await AdminGroup.findAll({
+            where: sequelize.literal(
+                `JSON_CONTAINS(members, CAST('${numericAdminId}' AS JSON))`
+            ),
+            attributes: ['groupId']
+        });
+
+        const groupIds = groups.map(group => group.groupId);
+        
+        // Get unread messages using MySQL JSON_CONTAINS
+        const unreadMessages = await AdminMessage.findAll({
+            where: {
+                [Op.or]: [
+                    { receiverId: numericAdminId },
+                    { groupId: { [Op.in]: groupIds } }
+                ],
+                [Op.and]: [
+                    sequelize.literal(
+                        `(readBy IS NULL OR NOT JSON_CONTAINS(readBy, CAST('${numericAdminId}' AS JSON)))`
+                    )
+                ]
+            },
+            include: [
+                {
+                    model: Admin,
+                    as: 'sender',
+                    attributes: ['adminId', 'username', 'fullName']
+                },
+                {
+                    model: AdminGroup,
+                    as: 'group',
+                    attributes: ['groupId', 'groupName']
+                }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+
+        return unreadMessages;
+    } catch (error) {
+        console.error('Error in getUnreadMessages:', error);
+        throw error;
     }
 }; 

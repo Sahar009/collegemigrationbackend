@@ -11,7 +11,7 @@ export const sendMessage = async (req, res) => {
     try {
         const result = await sendAdminMessage(
             {
-                senderId: req.user.adminId,
+                senderId: req.user.id,  
                 receiverId: req.body.receiverId,
                 groupId: req.body.groupId,
                 message: req.body.message,
@@ -33,9 +33,9 @@ export const sendMessage = async (req, res) => {
 export const getConversation = async (req, res) => {
     try {
         const { receiverId } = req.params;
-        const senderId = req.user.adminId; // Changed from req.user.id
+        const senderId = Number(req.user.id);
 
-        // Add explicit number validation
+        // Validate IDs
         if (isNaN(senderId) || isNaN(receiverId)) {
             return res.status(400).json({
                 success: false,
@@ -44,13 +44,9 @@ export const getConversation = async (req, res) => {
         }
 
         // Convert to numbers
-        const parsedSender = Number(senderId);
         const parsedReceiver = Number(receiverId);
 
-        console.log('Request params:', { receiverId });
-        console.log('Authenticated sender:', senderId);
-
-        if (!senderId || !receiverId) {
+        if (!senderId || !parsedReceiver) {
             return res.status(400).json({
                 success: false,
                 message: 'Receiver ID is required'
@@ -58,18 +54,14 @@ export const getConversation = async (req, res) => {
         }
 
         // Don't allow conversation with self
-        if (parsedSender === parsedReceiver) {
+        if (senderId === parsedReceiver) {
             return res.status(400).json({
                 success: false,
                 message: 'Cannot start conversation with yourself'
             });
         }
 
-        const result = await getAdminConversation(
-            parsedSender,
-            parsedReceiver
-        );
-        
+        const result = await getAdminConversation(senderId, parsedReceiver);
         return res.status(result.statusCode).json(result);
     } catch (error) {
         console.error('Get conversation error:', error);
@@ -129,7 +121,16 @@ export const createGroup = async (req, res) => {
 
 export const getAllConversations = async (req, res) => {
     try {
-        const result = await getAdminConversations(req.user.adminId);
+        // Ensure adminId is a valid number
+        const adminId = Number(req.user.id);
+        if (isNaN(adminId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid admin ID'
+            });
+        }
+
+        const result = await getAdminConversations(adminId);
         return res.status(result.statusCode).json(result);
     } catch (error) {
         console.error('Get all conversations error:', error);

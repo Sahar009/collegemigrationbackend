@@ -20,10 +20,21 @@ tuitionRouter.get('/verify',
     verifyTuitionPaymentController
 );
 
+// Agent routes
+tuitionRouter.post('/agent/initiate',
+    authenticateUser,
+    initiateTuitionPaymentController
+);
+
+tuitionRouter.get('/agent/verify',
+    authenticateUser,
+    verifyTuitionPaymentController
+);
+
 // Admin routes
 tuitionRouter.get('/', 
     authenticateAdmin,
     getTuitionPaymentsController
 );
 
-export default tuitionRouter; 
+export default tuitionRouter;

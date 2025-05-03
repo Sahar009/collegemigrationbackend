@@ -7,6 +7,7 @@ import { messageHandler } from '../utils/index.js';
 import { SUCCESS, BAD_REQUEST } from '../constants/statusCode.js';
 import PaymentProviderService from './paymentProviderService.js';
 import { Op } from 'sequelize';
+import AgentApplication from '../schema/AgentApplicationSchema.js';
 
 export const initiateTuitionPayment = async (data) => {
     try {
@@ -16,7 +17,8 @@ export const initiateTuitionPayment = async (data) => {
             amount, 
             currency, 
             paymentMethod,
-            email 
+            email,
+            applicationType
         } = data;
 
         // Get currency configuration and exchange rate
@@ -37,6 +39,18 @@ export const initiateTuitionPayment = async (data) => {
         // Generate payment reference
         const paymentReference = `TUI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+        // Verify application exists based on type
+        let application;
+        if (applicationType === 'agent') {
+            application = await AgentApplication.findByPk(applicationId);
+        } else {
+            application = await Application.findByPk(applicationId);
+        }
+
+        if (!application) {
+            throw new Error("Application not found");
+        }
+
         // Create transaction record
         const transaction = await Transaction.create({
             applicationId,
@@ -45,10 +59,10 @@ export const initiateTuitionPayment = async (data) => {
             currency,
             amountInUSD,
             paymentMethod,
-            paymentProvider: 'paystack', // or your default provider
+            paymentProvider: 'paystack',
             paymentReference,
             status: 'pending',
-            metadata: { email, type: 'tuition' }
+            metadata: { email, type: 'tuition', applicationType }
         });
 
         // Create tuition payment record
@@ -62,7 +76,7 @@ export const initiateTuitionPayment = async (data) => {
             transactionId: transaction.transactionId,
             paymentMethod,
             paymentProvider: 'paystack',
-            metadata: { email }
+            metadata: { email, applicationType }
         });
 
         // Initialize payment with provider
@@ -77,7 +91,8 @@ export const initiateTuitionPayment = async (data) => {
                 type: 'tuition',
                 tuitionPaymentId: tuitionPayment.paymentId,
                 applicationId,
-                memberId
+                memberId,
+                applicationType
             }
         });
 
@@ -221,11 +236,19 @@ export const verifyTuitionPayment = async (reference) => {
                 { where: { transactionId: tuitionPayment.transactionId } }
             );
 
-            // Update application status or any other necessary updates
-            await Application.update(
-                { paymentStatus: 'Paid' },
-                { where: { applicationId: tuitionPayment.applicationId } }
-            );
+            // Update application status based on type
+            const { applicationType } = tuitionPayment.metadata;
+            if (applicationType === 'agent') {
+                await AgentApplication.update(
+                    { paymentStatus: 'paid' },
+                    { where: { applicationId: tuitionPayment.applicationId } }
+                );
+            } else {
+                await Application.update(
+                    { paymentStatus: 'Paid' },
+                    { where: { applicationId: tuitionPayment.applicationId } }
+                );
+            }
 
             return messageHandler("Payment verified successfully", true, SUCCESS, {
                 tuitionPayment,
@@ -239,4 +262,4 @@ export const verifyTuitionPayment = async (reference) => {
         console.error('Tuition payment verification error:', error);
         throw error;
     }
-}; 
+};

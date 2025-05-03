@@ -77,25 +77,45 @@ export const markMessageAsRead = async (messageId, adminId) => {
 
 export const getUnreadMessages = async (adminId) => {
     try {
+        // Validate adminId
+        if (!adminId || isNaN(adminId)) {
+            throw new Error('Invalid admin ID');
+        }
+
+        const numericAdminId = Number(adminId);
+
+        // Get groups where admin is a member using parameterized query
         const groups = await AdminGroup.findAll({
-            where: sequelize.literal(
-                `JSON_CONTAINS(members, JSON_ARRAY(${adminId}))`
-            ),
+            where: {
+                members: {
+                    [Op.contains]: [numericAdminId]
+                }
+            },
             attributes: ['groupId']
         });
 
         const groupIds = groups.map(group => group.groupId);
         
+        // Get unread messages using parameterized query
         const unreadMessages = await AdminMessage.findAll({
             where: {
                 [Op.or]: [
-                    { receiverId: adminId },
+                    { receiverId: numericAdminId },
                     { groupId: { [Op.in]: groupIds } }
                 ],
                 [Op.and]: [
-                    sequelize.literal(
-                        `(readBy IS NULL OR NOT JSON_CONTAINS(readBy, JSON_ARRAY(${adminId})))`
-                    )
+                    {
+                        [Op.or]: [
+                            { readBy: null },
+                            {
+                                readBy: {
+                                    [Op.not]: {
+                                        [Op.contains]: [numericAdminId]
+                                    }
+                                }
+                            }
+                        ]
+                    }
                 ]
             },
             include: [
@@ -114,6 +134,7 @@ export const getUnreadMessages = async (adminId) => {
 
         return unreadMessages;
     } catch (error) {
+        console.error('Error in getUnreadMessages:', error);
         throw error;
     }
 }; 

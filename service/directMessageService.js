@@ -96,7 +96,26 @@ export const markAsRead = async (messageIds, userId, userType) => {
 
 export const getAllUserConversations = async (userId, userType) => {
     try {
-        console.log('Getting conversations for:', { userId, userType });
+        // Validate userId and userType
+        if (!userId || isNaN(userId) || !userType) {
+            return {
+                success: false,
+                statusCode: 400,
+                message: 'Invalid user ID or user type'
+            };
+        }
+
+        // Convert userId to number if it's a string
+        const numericUserId = Number(userId);
+        if (isNaN(numericUserId)) {
+            return {
+                success: false,
+                statusCode: 400,
+                message: 'Invalid user ID format'
+            };
+        }
+
+        console.log('Getting conversations for:', { userId: numericUserId, userType });
         
         const partners = await sequelize.query(`
             SELECT DISTINCT
@@ -113,7 +132,7 @@ export const getAllUserConversations = async (userId, userType) => {
                 (senderId = :userId AND senderType = :userType) OR
                 (receiverId = :userId AND receiverType = :userType)
         `, {
-            replacements: { userId, userType },
+            replacements: { userId: numericUserId, userType },
             type: sequelize.QueryTypes.SELECT
         });
 
