@@ -1,4 +1,4 @@
-import { createReferralService, getReferralsService, getReferralStatsService, updateReferralStatusService, getAdminReferralsService } from '../service/referralService.js';
+import { createReferralService, getReferralsService, getReferralStatsService, updateReferralStatusService, getAdminReferralsService, getAdminReferralStatsService } from '../service/referralService.js';
 import { messageHandler } from '../utils/index.js';
 import referralValidator from '../validations/referralValidator.js';
 
@@ -115,4 +115,18 @@ export const getAdminReferrals = async (req, res) => {
             messageHandler(error.message || 'Failed to retrieve referrals', false, 500)
         );
     }
-}; 
+};
+
+export const getAdminReferralStats = async (req, res) => {
+    try {
+      
+
+        const result = await getAdminReferralStatsService();
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Get admin referral stats error:', error);
+        return res.status(500).json(
+            messageHandler(error.message || 'Failed to retrieve referral statistics', false, 500)
+        );
+    }
+};

@@ -162,9 +162,11 @@ adminRouter.post(
 
 // Referral routes
 adminRouter.get('/referrals', asyncHandler(referralController.getAdminReferrals));
+adminRouter.get('/referrals/stats', asyncHandler(referralController.getAdminReferralStats));
+
 
 // Payment routes
-adminRouter.get('/payments', 
+adminRouter.get('/tuition-payments', 
     authenticateAdmin,
     getTuitionPaymentsController
 );

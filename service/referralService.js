@@ -530,3 +530,66 @@ export const getAdminReferralsService = async ({ page = 1, limit = 10, status, r
         throw error;
     }
 };
+
+export const getAdminReferralStatsService = async () => {
+    try {
+        // Get overall referral statistics
+        const [results] = await sequelize.query(`
+            SELECT 
+                r.referrerType,
+                COUNT(DISTINCT r.referrerId) as totalReferrers,
+                COUNT(DISTINCT r.memberId) as totalReferred,
+                COUNT(CASE WHEN r.status = 'paid' THEN 1 END) as paidReferrals,
+                COUNT(CASE WHEN r.status = 'unpaid' THEN 1 END) as unpaidReferrals
+            FROM referrals r
+            GROUP BY r.referrerType
+        `);
+
+        // Get top referrers
+        const [topAgentReferrers] = await sequelize.query(`
+            SELECT 
+                r.referrerId,
+                a.companyName as referrerName,
+                a.email as referrerEmail,
+                COUNT(r.memberId) as totalReferred,
+                COUNT(CASE WHEN r.status = 'paid' THEN 1 END) as paidReferrals
+            FROM referrals r
+            JOIN agents a ON r.referrerId = a.agentId
+            WHERE r.referrerType = 'Agent'
+            GROUP BY r.referrerId, a.companyName, a.email
+            ORDER BY totalReferred DESC
+            LIMIT 10
+        `);
+
+        const [topMemberReferrers] = await sequelize.query(`
+            SELECT 
+                r.referrerId,
+                CONCAT(m.firstname, ' ', m.lastname) as referrerName,
+                m.email as referrerEmail,
+                COUNT(r.memberId) as totalReferred,
+                COUNT(CASE WHEN r.status = 'paid' THEN 1 END) as paidReferrals
+            FROM referrals r
+            JOIN member_personal_information m ON r.referrerId = m.memberId
+            WHERE r.referrerType = 'Member'
+            GROUP BY r.referrerId, m.firstname, m.lastname, m.email
+            ORDER BY totalReferred DESC
+            LIMIT 10
+        `);
+
+        return messageHandler('Referral statistics retrieved successfully', true, 200, {
+            overallStats: results,
+            topReferrers: {
+                agents: topAgentReferrers,
+                members: topMemberReferrers
+            }
+        });
+
+    } catch (error) {
+        console.error('Get admin referral stats error:', error);
+        return messageHandler(
+            error.message || 'Failed to retrieve referral statistics',
+            false,
+            500
+        );
+    }
+};
