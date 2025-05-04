@@ -6,6 +6,8 @@ import { Agent } from '../schema/AgentSchema.js';
 import { Member } from '../schema/memberSchema.js';
 import Admin from '../schema/AdminSchema.js';
 import axios from 'axios';
+import { MESSAGES } from '../config/constants.js';
+
 
 export const createDirectMessage = async (messageData, files) => {
     try {
@@ -67,7 +69,8 @@ export const getConversationThread = async (userId, userType, otherId, otherType
             order: [['createdAt', 'ASC']]
         });
 
-        return messages;
+        // Return with messageHandler instead of raw messages
+        return messageHandler('Conversation retrieved successfully', true, 200, messages);
     } catch (error) {
         console.error('Get conversation error:', error);
         return messageHandler('Failed to get conversation', false, 500);

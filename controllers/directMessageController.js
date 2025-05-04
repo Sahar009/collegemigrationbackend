@@ -4,6 +4,7 @@ import {
     markAsRead,
     getAllUserConversations
 } from '../service/directMessageService.js';
+import { messageHandler } from '../utils/index.js';
 
 export const sendMessage = async (req, res) => {
     console.log('Message send request received:', req.body);
@@ -42,8 +43,10 @@ export const getConversation = async (req, res) => {
             req.params.otherType
         );
         
-        return res.status(result.statusCode).json(result);
+        // Add default status code if undefined
+        return res.status(result.statusCode || 500).json(result);
     } catch (error) {
+        console.error('Get conversation error:', error);
         return res.status(500).json(
             messageHandler("Internal server error", false, 500)
         );
