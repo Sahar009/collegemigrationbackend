@@ -345,7 +345,9 @@ export const getUserProfileService = async (memberId, callback) => {
             photo: member.photo,
             memberStatus: member.memberStatus,
             regDate: member.regDate,
-            lastUpdate: member.lastUpdate
+            lastUpdate: member.lastUpdate,
+            referralCode:member.referralCode,
+            referralLink: `${process.env.FRONTEND_URL}/register?ref=${member.referralCode}&type=Member&id=${member.memberId}`
         };
 
         return callback(

@@ -43,7 +43,10 @@ const adminRouter = express.Router();
 adminRouter.post('/login', validateLogin, asyncHandler(adminAuthController.login));
 adminRouter.post('/forgot-password', validateForgotPassword, asyncHandler(adminAuthController.forgotPassword));
 adminRouter.post('/reset-password', validateResetPassword, asyncHandler(adminAuthController.resetPassword));
-
+adminRouter.get('/admins', 
+    // requireRole(['super_admin']), 
+    asyncHandler(adminAuthController.getAllAdmins)
+);
 // Protected routes
 adminRouter.use(authenticateAdmin);
 
@@ -88,10 +91,10 @@ adminRouter.post('/admins',
     validateCreateAdmin,
     asyncHandler(adminAuthController.createAdmin)
 );
-adminRouter.get('/admins', 
-    // requireRole(['super_admin']), 
-    asyncHandler(adminAuthController.getAllAdmins)
-);
+// adminRouter.get('/admins', 
+//     // requireRole(['super_admin']), 
+//     asyncHandler(adminAuthController.getAllAdmins)
+// );
 adminRouter.put('/admins/:adminId/status', 
     requireRole(['super_admin']), 
     validateUpdateAdminStatus,
