@@ -7,7 +7,6 @@ import { messageHandler } from '../utils/index.js';
 import { SUCCESS, BAD_REQUEST } from '../constants/statusCode.js';
 import PaymentProviderService from './paymentProviderService.js';
 import { Op } from 'sequelize';
-import AgentApplication from '../schema/AgentApplicationSchema.js';
 
 export const initiateTuitionPayment = async (data) => {
     try {

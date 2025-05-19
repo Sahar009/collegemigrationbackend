@@ -27,6 +27,7 @@ const router = (app) => {
     app.use(`${API_PREFIX}/message`, messageRouter);
     app.use(`${API_PREFIX}/adminMessage`, adminGroupRouter);
     app.use(`${API_PREFIX}/adminMessage`, adminMessageRouter);
+    
 };
 
 export default router;

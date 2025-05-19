@@ -89,7 +89,7 @@ adminRouter.post('/admins',
     asyncHandler(adminAuthController.createAdmin)
 );
 adminRouter.get('/admins', 
-    requireRole(['super_admin']), 
+    // requireRole(['super_admin']), 
     asyncHandler(adminAuthController.getAllAdmins)
 );
 adminRouter.put('/admins/:adminId/status', 
