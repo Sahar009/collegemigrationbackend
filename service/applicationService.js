@@ -24,7 +24,7 @@ const verifyMemberProfile = async (memberId) => {
     const member = await Member.findByPk(memberId);
     
     const requiredFields = [
-        'othernames', 'phone', 'dob', 'idNumber', 'idType',
+         'phone', 'dob', 'idNumber', 'idType',
         'nationality', 'homeAddress', 'homeCity', 'homeZipCode',
         'homeState', 'homeCountry', 'gender'
     ];

@@ -102,7 +102,6 @@ export const updateMemberProfileService = async (memberId, data, callback) => {
             idType: updatedMember.idType,
             idNumber: updatedMember.idNumber,
             idScanFront: updatedMember.idScanFront,
-            idScanBack: updatedMember.idScanBack,
             nationality: updatedMember.nationality,
             schengenVisaHolder: updatedMember.schengenVisaHolder,
             photo: updatedMember.photo,
@@ -208,7 +207,7 @@ export const validateIdDocumentsService = async (memberId, callback) => {
                 idType: member.idType,
                 idNumber: member.idNumber,
                 idScanFront: member.idScanFront,
-                idScanBack: member.idScanBack
+              
             })
         );
 
@@ -258,7 +257,7 @@ export const updateOnboardingSectionService = async (memberId, section, data, ca
                     idType: data.idType,
                     idNumber: data.idNumber,
                     idScanFront: data.idScanFront,
-                    idScanBack: data.idScanBack
+                  
                 };
                 break;
                 
@@ -336,7 +335,6 @@ export const getMemberProfileService = async (memberId, callback) => {
             idType: member.idType,
             idNumber: member.idNumber,
             idScanFront: member.idScanFront,
-            idScanBack: member.idScanBack,
             nationality: member.nationality,
             schengenVisaHolder: member.schengenVisaHolder,
             photo: member.photo,
@@ -402,7 +400,7 @@ export const updateProfileFieldsService = async (memberId, updates, callback) =>
             idType: updatedMember.idType,
             idNumber: updatedMember.idNumber,
             idScanFront: updatedMember.idScanFront,
-            idScanBack: updatedMember.idScanBack,
+    
             nationality: updatedMember.nationality,
             schengenVisaHolder: updatedMember.schengenVisaHolder,
             photo: updatedMember.photo,
@@ -447,9 +445,9 @@ export const uploadDocumentsService = async (memberId, files, callback) => {
             updates.idScanFront = files.idScanFront[0].path;
         }
         
-        if (files.idScanBack) {
-            updates.idScanBack = files.idScanBack[0].path;
-        }
+        // if (files.idScanBack) {
+        //     updates.idScanBack = files.idScanBack[0].path;
+        // }
 
         // Update member record
         await member.update(updates);

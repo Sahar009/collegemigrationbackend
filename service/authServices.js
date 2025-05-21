@@ -339,7 +339,7 @@ export const getUserProfileService = async (memberId, callback) => {
             idType: member.idType,
             idNumber: member.idNumber,
             idScanFront: member.idScanFront,
-            idScanBack: member.idScanBack,
+            // idScanBack: member.idScanBack,
             nationality: member.nationality,
             schengenVisaHolder: member.schengenVisaHolder,
             photo: member.photo,

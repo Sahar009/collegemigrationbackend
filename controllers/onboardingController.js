@@ -20,9 +20,9 @@ export const updateMemberProfile = (req, res) => {
         if (req.files.idScanFront) {
             profileData.idScanFront = req.files.idScanFront[0].path;
         }
-        if (req.files.idScanBack) {
-            profileData.idScanBack = req.files.idScanBack[0].path;
-        }
+        // if (req.files.idScanBack) {
+        //     profileData.idScanBack = req.files.idScanBack[0].path;
+        // }
     }
 
     updateMemberProfileService(memberId, profileData, (response) => {
