@@ -11,6 +11,7 @@ import adminRouter from './admin/index.js';
 import messageRouter from './message/index.js';
 import adminGroupRouter from './adminMessage/adminGroupRoutes.js';
 import adminMessageRouter from './adminMessage/index.js';
+import commissionRateRoutes from './commissionRate.js';
 import tuitionRouter from './payment/tuitionRoutes.js';
 
 const router = (app) => {
@@ -27,6 +28,7 @@ const router = (app) => {
     app.use(`${API_PREFIX}/message`, messageRouter);
     app.use(`${API_PREFIX}/adminMessage`, adminGroupRouter);
     app.use(`${API_PREFIX}/adminMessage`, adminMessageRouter);
+    app.use(`${API_PREFIX}/commission-rates`, commissionRateRoutes);
     
 };
 

@@ -7,7 +7,7 @@ import Wallet from '../schema/WalletSchema.js';
 import WalletTransaction from '../schema/WalletTransactionSchema.js';
 import { messageHandler } from '../utils/index.js';
 import sequelize from '../database/db.js';
-import { REFERRAL_STATUS, COMMISSION_RATES } from '../constants/referral.js';
+import { REFERRAL_STATUS, getCommissionRates } from '../constants/referral.js';
 import { generateReference } from '../utils/reference.js';
 import { Agent } from '../schema/AgentSchema.js';
 
@@ -232,7 +232,8 @@ export const updateReferralStatusService = async (referralId, status, userId) =>
 
         // Handle commission for paid status
         if (status === REFERRAL_STATUS.PAID) {
-            const commissionAmount = COMMISSION_RATES[referral.referralType];
+            const commissionRates = await getCommissionRates();
+            const commissionAmount = commissionRates[referral.referralType];
             
             const wallet = await Wallet.findOne({
                 where: {
@@ -276,6 +277,7 @@ export const updateReferralStatusService = async (referralId, status, userId) =>
 
 export const getReferralStatsService = async (userId, userRole) => {
     try {
+        const commissionRates = await getCommissionRates(); 
         const [referralStats, wallet] = await Promise.all([
             Referral.findAll({
                 where: {
@@ -287,7 +289,7 @@ export const getReferralStatsService = async (userId, userRole) => {
                     [sequelize.fn('COUNT', sequelize.col('referralId')), 'count'],
                     [sequelize.fn('SUM', 
                         sequelize.literal(`CASE WHEN status = '${REFERRAL_STATUS.PAID}' 
-                        THEN ${COMMISSION_RATES[userRole]} ELSE 0 END`)
+                        THEN ${commissionRates[userRole]} ELSE 0 END`)
                     ), 'totalEarnings']
                 ],
                 group: ['status']
