@@ -1,12 +1,13 @@
 import express from 'express';
 import { getRates, updateRate } from '../controllers/commissionRateController.js';
+import { authenticateAdmin } from '../middleware/adminAuthMiddleware.js';
 
-const router = express.Router();
+const commisionRouter = express.Router();
 
-router.route('/')
-    .get(getRates);
+commisionRouter.use(authenticateAdmin);
 
-router.route('/:userType')
-    .put(updateRate);
+commisionRouter.get('/',getRates);
 
-export default router;
+commisionRouter.put('/:userType',updateRate);
+
+export default commisionRouter;
