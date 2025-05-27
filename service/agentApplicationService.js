@@ -6,6 +6,9 @@ import { Agent } from '../schema/AgentSchema.js';
 import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
 import AgentStudentDocument from '../schema/AgentStudentDocumentSchema.js';
 import AgentTransaction from '../schema/AgentTransactionSchema.js';
+import { createNotification } from './notificationService.js';
+import Wallet from '../schema/WalletSchema.js';
+import { Transaction } from '../schema/transactionSchema.js';
 
 // Add these helper functions at the top
 const checkRequiredDocuments = async (memberId, programCategory) => {
@@ -145,7 +148,7 @@ export const createAgentApplicationService = async (agentId, data, callback) => 
             ));
         }
 
-        // Create application with proper ENUM values
+        // Create applicatio-n with proper ENUM values
         const application = await AgentApplication.create({
             agentId,
             memberId: data.memberId,
@@ -344,17 +347,31 @@ export const updateAgentApplicationService = async (agentId, applicationId, data
     }
 };
 
+const getApplicationPaymentAmount = async (applicationId) => {
+    const transaction = await Transaction.findOne({
+        where: { 
+            applicationId,
+            status: 'completed' // Only consider completed transactions
+        },
+        order: [['createdAt', 'DESC']]
+    });
+    return transaction ? transaction.amount : 0;
+};
+
 // Delete Application (Soft Delete)
 export const deleteAgentApplicationService = async (agentId, applicationId, callback) => {
+    const t = await sequelize.transaction();
     try {
         const application = await AgentApplication.findOne({
             where: { 
                 applicationId,
                 agentId 
-            }
+            },
+            transaction: t
         });
 
         if (!application) {
+            await t.rollback();
             return callback(messageHandler(
                 "Application not found",
                 false,
@@ -362,11 +379,78 @@ export const deleteAgentApplicationService = async (agentId, applicationId, call
             ));
         }
 
+        // Check if application can be cancelled
+        if (application.applicationStatus === 'submitted_to_school') {
+            await t.rollback();
+            return callback(messageHandler(
+                "Cannot cancel application already submitted to school",
+                false,
+                BAD_REQUEST
+            ));
+        }
+
+        // Check if payment was made and needs refund
+        if (application.paymentStatus === 'paid') {
+            // Get the agent's wallet
+            const wallet = await Wallet.findOne({
+                where: {
+                    userId: agentId,
+                    userType: 'agent'
+                },
+                transaction: t
+            });
+
+            if (!wallet) {
+                await t.rollback();
+                return callback(messageHandler(
+                    "Wallet not found",
+                    false,
+                    NOT_FOUND
+                ));
+            }
+
+            // Get payment amount - ensure this function is implemented
+            const paymentAmount = await getApplicationPaymentAmount(applicationId);
+            
+            // Refund to wallet
+            await wallet.update({
+                balance: sequelize.literal(`balance + ${paymentAmount}`)
+            }, { transaction: t });
+
+            // Uncomment and implement the transaction recording
+            await AgentTransaction.create({
+                agentId,
+                applicationId,
+                amount: paymentAmount,
+                transactionType: 'refund',
+                status: 'completed',
+                reference: `REFUND-${Date.now()}`,
+                metadata: {
+                    originalApplicationStatus: application.applicationStatus,
+                    refundReason: 'application_cancellation'
+                }
+            }, { transaction: t });
+        }
+
+        // Update application status
         await application.update({
             applicationStatus: 'cancelled',
-            applicationStatusDate: new Date()
+            applicationStatusDate: new Date(),
+            paymentStatus: application.paymentStatus === 'paid' ? 'refunded' : application.paymentStatus,
+            cancellationReason: 'agent_request' // Add cancellation reason
+        }, { transaction: t });
+
+        await createNotification({
+            userId: agentId,
+            userType: 'agent',
+            type: 'application_status',
+            title: 'Application Cancelled',
+            message: `Your application #${applicationId} has been cancelled.`,
+            link: `/agent/applications/${applicationId}`
         });
 
+        await t.commit();
+        
         return callback(messageHandler(
             "Application cancelled successfully",
             true,
@@ -374,6 +458,7 @@ export const deleteAgentApplicationService = async (agentId, applicationId, call
         ));
 
     } catch (error) {
+        await t.rollback();
         console.error('Delete application error:', error);
         return callback(messageHandler(
             "Error cancelling application",
@@ -381,4 +466,4 @@ export const deleteAgentApplicationService = async (agentId, applicationId, call
             BAD_REQUEST
         ));
     }
-}; 
+};
