@@ -9,6 +9,9 @@ import AgentTransaction from '../schema/AgentTransactionSchema.js';
 import { createNotification } from './notificationService.js';
 import Wallet from '../schema/WalletSchema.js';
 import { Transaction } from '../schema/transactionSchema.js';
+import { Op } from 'sequelize';
+import sequelize from '../database/db.js';
+import  WalletTransaction  from '../schema/walletTransactionSchema.js';
 
 // Add these helper functions at the top
 const checkRequiredDocuments = async (memberId, programCategory) => {
@@ -348,7 +351,7 @@ export const updateAgentApplicationService = async (agentId, applicationId, data
 };
 
 const getApplicationPaymentAmount = async (applicationId) => {
-    const transaction = await Transaction.findOne({
+    const transaction = await AgentTransaction.findOne({
         where: { 
             applicationId,
             status: 'completed' // Only consider completed transactions
@@ -391,7 +394,7 @@ export const deleteAgentApplicationService = async (agentId, applicationId, call
 
         // Check if payment was made and needs refund
         if (application.paymentStatus === 'paid') {
-            // Get the agent's wallet
+            console.log(agentId, applicationId)
             const wallet = await Wallet.findOne({
                 where: {
                     userId: agentId,
@@ -411,24 +414,38 @@ export const deleteAgentApplicationService = async (agentId, applicationId, call
 
             // Get payment amount - ensure this function is implemented
             const paymentAmount = await getApplicationPaymentAmount(applicationId);
-            
+            console.log(paymentAmount)
             // Refund to wallet
             await wallet.update({
                 balance: sequelize.literal(`balance + ${paymentAmount}`)
             }, { transaction: t });
 
-            // Uncomment and implement the transaction recording
+            // Create AgentTransaction
             await AgentTransaction.create({
+                transactionId: `RFND-${Date.now()}-${applicationId}`,
                 agentId,
                 applicationId,
+                memberId: application.memberId,
                 amount: paymentAmount,
-                transactionType: 'refund',
+                currency: 'USD',
+                amountInUSD: paymentAmount,
+                paymentMethod: 'wallet_refund',
+                paymentProvider: 'system',
                 status: 'completed',
-                reference: `REFUND-${Date.now()}`,
+                paymentReference: `REFUND-${Date.now()}`,
                 metadata: {
                     originalApplicationStatus: application.applicationStatus,
                     refundReason: 'application_cancellation'
                 }
+            }, { transaction: t });
+
+            // Create WalletTransaction
+            await WalletTransaction.create({
+                walletId: wallet.walletId,
+                type: 'refund',
+                amount: paymentAmount,
+                status: 'Completed',
+                applicationId
             }, { transaction: t });
         }
 
