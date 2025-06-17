@@ -37,10 +37,10 @@ export const sendMessage = async (req, res) => {
 export const getConversation = async (req, res) => {
     try {
         const result = await getConversationThread(
-            req.user.id,
-            req.user.type,
-            req.params.otherId,
-            req.params.otherType
+            req.query.userId,
+            req.query.userType,
+            req.params.otherId,    
+            req.params.otherType 
         );
         
         // Add default status code if undefined
