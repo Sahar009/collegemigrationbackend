@@ -11,7 +11,7 @@ import Wallet from '../schema/WalletSchema.js';
 import { Transaction } from '../schema/transactionSchema.js';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
-import  WalletTransaction  from '../schema/walletTransactionSchema.js';
+import WalletTransaction from '../schema/WalletTransactionSchema.js'
 
 // Add these helper functions at the top
 const checkRequiredDocuments = async (memberId, programCategory) => {
