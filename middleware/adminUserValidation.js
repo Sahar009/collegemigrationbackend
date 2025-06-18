@@ -3,12 +3,47 @@ import { validateRequest } from './validateRequest.js';
 
 // Validate get all users query parameters
 export const validateGetUsers = [
-    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
-    query('userType').optional().isIn(['all', 'member', 'agent']).withMessage('Invalid user type'),
-    query('status').optional().isString().withMessage('Status must be a string'),
-    query('sortBy').optional().isString().withMessage('Sort by must be a string'),
-    query('sortOrder').optional().isIn(['ASC', 'DESC']).withMessage('Sort order must be ASC or DESC'),
+    query('all')
+        .optional()
+        .isString()
+        .isIn(['true', 'false'])
+        .withMessage('All must be either "true" or "false"')
+        .toBoolean(),
+    query('page')
+        .optional()
+        .custom((value, { req }) => {
+            if (req.query.all === true) return true;
+            if (!value) throw new Error('Page is required when not fetching all records');
+            return !isNaN(value) && parseInt(value) > 0;
+        })
+        .withMessage('Page must be a positive integer')
+        .toInt(),
+    query('limit')
+        .optional()
+        .custom((value, { req }) => {
+            if (req.query.all === true) return true;
+            if (!value) throw new Error('Limit is required when not fetching all records');
+            const num = parseInt(value);
+            return !isNaN(num) && num > 0 && num <= 1000;
+        })
+        .withMessage('Limit must be between 1 and 1000')
+        .toInt(),
+    query('userType')
+        .optional()
+        .isIn(['all', 'member', 'agent'])
+        .withMessage('Invalid user type'),
+    query('status')
+        .optional()
+        .isString()
+        .withMessage('Status must be a string'),
+    query('sortBy')
+        .optional()
+        .isString()
+        .withMessage('Sort by must be a string'),
+    query('sortOrder')
+        .optional()
+        .isIn(['ASC', 'DESC'])
+        .withMessage('Sort order must be ASC or DESC'),
     validateRequest
 ];
 
