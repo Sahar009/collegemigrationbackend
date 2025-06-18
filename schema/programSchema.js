@@ -1,5 +1,6 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../database/db.js";
+import { School } from "./schoolSchema.js";
 
 export const Program = sequelize.define('Program', {
     programId: {
@@ -38,6 +39,16 @@ export const Program = sequelize.define('Program', {
             'Non-Credential'
         ),
         allowNull: false
+    },
+    schoolId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'schools',
+            key: 'schoolId'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'RESTRICT'
     },
     schoolName: {
         type: DataTypes.STRING(255),
@@ -92,4 +103,8 @@ export const Program = sequelize.define('Program', {
 }, {
     timestamps: false,
     tableName: 'programs'
-}); 
+});
+
+// Define association
+Program.belongsTo(School, { foreignKey: 'schoolId' });
+School.hasMany(Program, { foreignKey: 'schoolId' });

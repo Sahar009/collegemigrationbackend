@@ -30,10 +30,13 @@ export const getAllUsersService = async (query) => {
             status, 
             search,
             sortBy = 'createdAt',
-            sortOrder = 'DESC'
+            sortOrder = 'DESC',
+            all = false
         } = query;
         
-        const offset = (parseInt(page) - 1) * parseInt(limit);
+        // If all flag is true, we'll fetch all records without pagination
+        const queryLimit = all ? null : parseInt(limit);
+        const queryOffset = all ? 0 : (parseInt(page) - 1) * parseInt(limit);
         
         let memberData = { count: 0, rows: [] };
         let agentData = { count: 0, rows: [] };
@@ -58,7 +61,6 @@ export const getAllUsersService = async (query) => {
             
             Object.assign(memberWhere, searchCondition);
             
-            // For agents, adjust the search fields
             const agentSearchCondition = {
                 [Op.or]: [
                     { email: { [Op.like]: `%${search}%` } },
@@ -78,8 +80,8 @@ export const getAllUsersService = async (query) => {
                     'memberId', 'firstname', 'lastname', 'email', 
                     'phone', 'memberStatus', 'createdAt'
                 ],
-                limit: parseInt(limit),
-                offset,
+                limit: queryLimit,
+                offset: queryOffset,
                 order: [[sortBy, sortOrder]]
             });
         }
@@ -92,8 +94,8 @@ export const getAllUsersService = async (query) => {
                     'agentId', 'companyName', 'contactPerson', 'email', 
                     'phone', 'status', 'createdAt'
                 ],
-                limit: parseInt(limit),
-                offset,
+                limit: queryLimit,
+                offset: queryOffset,
                 order: [[sortBy, sortOrder]]
             });
         }
@@ -134,8 +136,11 @@ export const getAllUsersService = async (query) => {
                 return new Date(a[sortBy]) - new Date(b[sortBy]);
             });
             
-            // Apply pagination to combined results
-            users = users.slice(offset, offset + parseInt(limit));
+            // Only apply pagination if not fetching all records
+            if (!all) {
+                users = users.slice(queryOffset, queryOffset + parseInt(limit));
+            }
+            
             totalCount = memberData.count + agentData.count;
         } else if (userType === 'member') {
             users = memberData.rows.map(member => ({
@@ -170,9 +175,9 @@ export const getAllUsersService = async (query) => {
                 users,
                 pagination: {
                     totalItems: totalCount,
-                    totalPages: Math.ceil(totalCount / parseInt(limit)),
-                    currentPage: parseInt(page),
-                    pageSize: parseInt(limit)
+                    totalPages: all ? 1 : Math.ceil(totalCount / parseInt(limit)),
+                    currentPage: all ? 1 : parseInt(page),
+                    pageSize: all ? totalCount : parseInt(limit)
                 }
             }
         );

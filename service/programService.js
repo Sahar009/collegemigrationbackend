@@ -21,11 +21,18 @@ export const createProgramService = async (data, callback) => {
             return callback(messageHandler("Invalid program category", false, BAD_REQUEST));
         }
         
+        // Check if school exists
+        const school = await School.findByPk(data.schoolId);
+        if (!school) {
+            return callback(messageHandler("School not found", false, NOT_FOUND));
+        }
+
         const newProgram = await Program.create({
             programName: data.programName,
             degree: data.degree,
             degreeLevel: data.degreeLevel,
-            schoolName: data.schoolName,
+            schoolId: data.schoolId,
+            schoolName: school.schoolName, // Keep for backward compatibility
             language: data.language,
             semesters: data.semesters,
             fee: data.fee,
@@ -34,7 +41,7 @@ export const createProgramService = async (data, callback) => {
             about: data.about || null,
             category: data.category,
             features: data.features || null,
-            schoolLogo: data.schoolLogo || null,
+            schoolLogo: school.logo || data.schoolLogo || null,
             programImage: data.programImage || null,
             applicationFee: data.applicationFee
         });
@@ -188,8 +195,7 @@ export const getProgramByIdService = async (programId, callback) => {
         const program = await Program.findByPk(programId, {
             include: [{
                 model: School,
-                as: 'school',
-                attributes: ['applicationDeadline']
+                attributes: ['schoolId', 'schoolName', 'country', 'city', 'logo', 'website', 'email', 'phone', 'applicationDeadline', 'description']
             }]
         });
 
@@ -199,19 +205,12 @@ export const getProgramByIdService = async (programId, callback) => {
             );
         }
 
-        // Add applicationDeadline from school to program data
+        // Cache the program with school details
         const programData = program.toJSON();
-        programData.applicationDeadline = program.school?.applicationDeadline || null;
-
-        // Cache the program with school's application deadline
         await setCache(cacheKey, programData);
         
         return callback(
             messageHandler("Program retrieved successfully", true, SUCCESS, programData)
-        );
-
-        return callback(
-            messageHandler("Program retrieved successfully", true, SUCCESS, program)
         );
 
     } catch (error) {
@@ -224,13 +223,29 @@ export const getProgramByIdService = async (programId, callback) => {
 
 // Update Program Service
 export const updateProgramService = async (programId, data, callback) => {
+    const t = await Program.sequelize.transaction();
+    
     try {
-        const program = await Program.findByPk(programId);
-
+        const program = await Program.findByPk(programId, { transaction: t });
+        
         if (!program) {
-            return callback(
-                messageHandler("Program not found", false, NOT_FOUND)
-            );
+            await t.rollback();
+            return callback(messageHandler("Program not found", false, NOT_FOUND));
+        }
+
+        // If schoolId is being updated, validate the new school
+        if (data.schoolId && data.schoolId !== program.schoolId) {
+            const school = await School.findByPk(data.schoolId, { transaction: t });
+            if (!school) {
+                await t.rollback();
+                return callback(messageHandler("School not found", false, NOT_FOUND));
+            }
+            // Update schoolName to match the new school
+            data.schoolName = school.schoolName;
+            // Update logo if not explicitly set
+            if (!data.schoolLogo) {
+                data.schoolLogo = school.logo || null;
+            }
         }
 
         // Update program

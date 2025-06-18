@@ -47,6 +47,12 @@ export const getAllProgramsService = async (query) => {
     
     const { count, rows: programs } = await Program.findAndCountAll({
       where: whereConditions,
+      include: [
+        {
+          model: School,
+          attributes: ['schoolId', 'schoolName', 'country', 'city', 'logo']
+        }
+      ],
       limit: parseInt(limit),
       offset,
       order: [[sortBy, sortOrder]]
@@ -79,7 +85,14 @@ export const getAllProgramsService = async (query) => {
 // Get program by ID
 export const getProgramByIdService = async (programId) => {
   try {
-    const program = await Program.findByPk(programId);
+    const program = await Program.findByPk(programId, {
+      include: [
+        {
+          model: School,
+          attributes: ['schoolId', 'schoolName', 'country', 'city', 'logo', 'description', 'website', 'applicationDeadline']
+        }
+      ]
+    });
     
     if (!program) {
       return messageHandler('Program not found', false, 404);
@@ -103,34 +116,40 @@ export const getProgramByIdService = async (programId) => {
 
 // Create new program
 export const createProgramService = async (programData) => {
-  const t = await sequelize.transaction();
+  const transaction = await sequelize.transaction();
   
   try {
-    // Check if school exists
-    const school = await School.findByPk(programData.schoolId, { transaction: t });
-    
+    // First check if the school exists
+    const school = await School.findByPk(programData.schoolId);
     if (!school) {
-      await t.rollback();
+      await transaction.rollback();
       return messageHandler('School not found', false, 404);
     }
     
-    // Create program
-    const program = await Program.create({
-      ...programData,
-      schoolName: school.schoolName,
-      isActive: true
-    }, { transaction: t });
+    // Set school name from the school record
+    programData.schoolName = school.schoolName;
     
-    await t.commit();
+    const program = await Program.create(programData, { transaction });
+    await transaction.commit();
+    
+    // Fetch the created program with school details
+    const createdProgram = await Program.findByPk(program.programId, {
+      include: [
+        {
+          model: School,
+          attributes: ['schoolId', 'schoolName', 'country', 'city', 'logo']
+        }
+      ]
+    });
     
     return messageHandler(
       'Program created successfully',
       true,
       201,
-      program
+      createdProgram
     );
   } catch (error) {
-    await t.rollback();
+    await transaction.rollback();
     console.error('Create program error:', error);
     return messageHandler(
       error.message || 'Failed to create program',
@@ -152,20 +171,29 @@ export const updateProgramService = async (programId, updateData) => {
       return messageHandler('Program not found', false, 404);
     }
     
-    // If schoolId is being updated, check if the new school exists
+    // If schoolId is being updated, verify the new school exists
     if (updateData.schoolId && updateData.schoolId !== program.schoolId) {
       const school = await School.findByPk(updateData.schoolId, { transaction: t });
-      
       if (!school) {
         await t.rollback();
         return messageHandler('School not found', false, 404);
       }
-      
-      // Update schoolName to match the new school
+      // Update school name when schoolId changes
       updateData.schoolName = school.schoolName;
     }
     
     await program.update(updateData, { transaction: t });
+    
+    // Fetch the updated program with school details
+    const updatedProgram = await Program.findByPk(programId, {
+      include: [
+        {
+          model: School,
+          attributes: ['schoolId', 'schoolName', 'country', 'city', 'logo']
+        }
+      ],
+      transaction: t
+    });
     
     await t.commit();
     
@@ -173,7 +201,7 @@ export const updateProgramService = async (programId, updateData) => {
       'Program updated successfully',
       true,
       200,
-      program
+      updatedProgram
     );
   } catch (error) {
     await t.rollback();
