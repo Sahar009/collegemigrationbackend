@@ -47,6 +47,10 @@ export const School = sequelize.define('School', {
     type: DataTypes.STRING(255),
     allowNull: true
   },
+  applicationDeadline: {
+    type: DataTypes.STRING,
+    allowNull: true
+},
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

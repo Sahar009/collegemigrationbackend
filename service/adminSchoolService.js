@@ -113,10 +113,15 @@ export const createSchoolService = async (schoolData) => {
   const t = await sequelize.transaction();
   
   try {
+    // Format the application deadline if it exists
+    const formattedDeadline = schoolData.applicationDeadline 
+      ? new Date(schoolData.applicationDeadline).toISOString()
+      : null;
+
     // Create school with application deadline
     const school = await School.create({
       ...schoolData,
-      applicationDeadline: schoolData.applicationDeadline || null,
+      applicationDeadline: formattedDeadline,
       isActive: true
     }, { transaction: t });
     
@@ -165,14 +170,14 @@ export const updateSchoolService = async (schoolId, updateData) => {
     }
     
     // Clear program caches when school's application deadline changes
-    if ('applicationDeadline' in updateData) {
-      // Clear all program caches that might be affected
-      await Promise.all([
-        clearCache('programs:*'),
-        clearCache('programs:search:*'),
-        clearCache('programs:filter:*')
-      ]);
-    }
+    // if ('applicationDeadline' in updateData) {
+    //   // Clear all program caches that might be affected
+    //   await Promise.all([
+    //     clearCache('programs:*'),
+    //     clearCache('programs:search:*'),
+    //     clearCache('programs:filter:*')
+    //   ]);
+    // }
     
     await t.commit();
     
