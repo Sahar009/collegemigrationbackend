@@ -1,4 +1,5 @@
 import { Program } from '../schema/programSchema.js';
+import { School } from '../schema/schoolSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
 import { Op } from 'sequelize';
@@ -35,8 +36,7 @@ export const createProgramService = async (data, callback) => {
             features: data.features || null,
             schoolLogo: data.schoolLogo || null,
             programImage: data.programImage || null,
-            applicationFee: data.applicationFee,
-            applicationDeadline: data.applicationDeadline
+            applicationFee: data.applicationFee
         });
         
         // Clear ALL program-related caches
@@ -120,18 +120,29 @@ export const getAllProgramsService = async (query, callback) => {
         // Calculate offset for pagination
         const offset = (page - 1) * limit;
 
-        // Get programs with pagination
+        // Get programs with pagination and include school's application deadline
         const { count, rows: programs } = await Program.findAndCountAll({
             where: whereClause,
             limit: parseInt(limit),
-            offset: parseInt(offset)
+            offset: parseInt(offset),
+            include: [{
+                model: School,
+                as: 'school',
+                attributes: ['applicationDeadline']
+            }]
         });
+
+        // Map programs to include applicationDeadline from school
+        const programsWithDeadline = programs.map(program => ({
+            ...program.toJSON(),
+            applicationDeadline: program.school?.applicationDeadline || null
+        }));
 
         // Calculate total pages
         const totalPages = Math.ceil(count / limit);
 
         const responseData = {
-            programs: programs.length ? programs : [],
+            programs: programsWithDeadline,
             pagination: {
                 total: count,
                 totalPages,
@@ -174,7 +185,13 @@ export const getProgramByIdService = async (programId, callback) => {
             );
         }
 
-        const program = await Program.findByPk(programId);
+        const program = await Program.findByPk(programId, {
+            include: [{
+                model: School,
+                as: 'school',
+                attributes: ['applicationDeadline']
+            }]
+        });
 
         if (!program) {
             return callback(
@@ -182,8 +199,16 @@ export const getProgramByIdService = async (programId, callback) => {
             );
         }
 
-        // Cache the program
-        await setCache(cacheKey, program);
+        // Add applicationDeadline from school to program data
+        const programData = program.toJSON();
+        programData.applicationDeadline = program.school?.applicationDeadline || null;
+
+        // Cache the program with school's application deadline
+        await setCache(cacheKey, programData);
+        
+        return callback(
+            messageHandler("Program retrieved successfully", true, SUCCESS, programData)
+        );
 
         return callback(
             messageHandler("Program retrieved successfully", true, SUCCESS, program)

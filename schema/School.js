@@ -31,6 +31,10 @@ const School = sequelize.define('School', {
         type: DataTypes.ENUM('active', 'inactive'),
         defaultValue: 'active'
     },
+    applicationDeadline: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     createdAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

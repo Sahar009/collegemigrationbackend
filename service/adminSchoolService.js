@@ -87,6 +87,11 @@ export const getSchoolByIdService = async (schoolId) => {
     const schoolData = school.toJSON();
     schoolData.programCount = programCount;
     
+    // Ensure applicationDeadline is included in the response
+    if (!('applicationDeadline' in schoolData)) {
+      schoolData.applicationDeadline = null;
+    }
+    
     return messageHandler(
       'School retrieved successfully',
       true,
@@ -108,9 +113,10 @@ export const createSchoolService = async (schoolData) => {
   const t = await sequelize.transaction();
   
   try {
-    // Create school
+    // Create school with application deadline
     const school = await School.create({
       ...schoolData,
+      applicationDeadline: schoolData.applicationDeadline || null,
       isActive: true
     }, { transaction: t });
     
@@ -156,6 +162,16 @@ export const updateSchoolService = async (schoolId, updateData) => {
           transaction: t 
         }
       );
+    }
+    
+    // Clear program caches when school's application deadline changes
+    if ('applicationDeadline' in updateData) {
+      // Clear all program caches that might be affected
+      await Promise.all([
+        clearCache('programs:*'),
+        clearCache('programs:search:*'),
+        clearCache('programs:filter:*')
+      ]);
     }
     
     await t.commit();

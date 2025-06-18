@@ -84,10 +84,6 @@ export const Program = sequelize.define('Program', {
         type: DataTypes.STRING(255),
         allowNull: false
     },
-    applicationDeadline: {
-        type: DataTypes.STRING(255),
-        allowNull: false
-    },
     isActive: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
