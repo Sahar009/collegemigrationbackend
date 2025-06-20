@@ -16,7 +16,7 @@ import { ActivityLog } from '../schema/ActivityLogSchema.js';
 import Notification from '../schema/NotificationSchema.js';
 import Wallet from '../schema/WalletSchema.js';
 import WalletTransaction from '../schema/WalletTransactionSchema.js';
-import { checkRequiredDocuments, REQUIRED_DOCUMENTS } from './applicationService.js';
+import { checkRequiredDocuments, REQUIRED_DOCUMENTS, verifyMemberProfile } from './applicationService.js';
 
 // Get all applications with filtering and pagination
 export const getAllApplicationsService = async (query) => {
@@ -1149,7 +1149,7 @@ export const initiateAdminApplicationService = async (memberId, programData, cal
             return callback(messageHandler(
                 "Please complete your profile before applying", 
                 false, 
-                BAD_REQUEST
+                400
             ));
         }
 

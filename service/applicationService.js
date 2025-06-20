@@ -20,7 +20,7 @@ const checkActiveApplicationsCount = async (memberId) => {
 };
 
 // Verify member profile completion
-const verifyMemberProfile = async (memberId) => {
+export const verifyMemberProfile = async (memberId) => {
     const member = await Member.findByPk(memberId);
     
     const requiredFields = [
