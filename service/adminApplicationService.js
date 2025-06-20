@@ -17,6 +17,8 @@ import Notification from '../schema/NotificationSchema.js';
 import Wallet from '../schema/WalletSchema.js';
 import WalletTransaction from '../schema/WalletTransactionSchema.js';
 import { checkRequiredDocuments, REQUIRED_DOCUMENTS, verifyMemberProfile } from './applicationService.js';
+import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
+
 
 // Get all applications with filtering and pagination
 export const getAllApplicationsService = async (query) => {
