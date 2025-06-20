@@ -33,10 +33,13 @@ import * as adminTransactionController from '../../controllers/adminTransactionC
 import * as adminNotificationController from '../../controllers/adminNotificationController.js';
 import * as adminWithdrawalController from '../../controllers/adminWithdrawalController.js';
 import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
+import { validateUpdateDocumentPath } from '../../middleware/documentValidation.js';
 import { toggleProgramStatusController } from '../../controllers/programController.js';
 import * as referralController from '../../controllers/referralController.js';
 import { getTuitionPaymentsController } from '../../controllers/tuitionPaymentController.js';
 import { updateExchangeRate } from '../../controllers/paymentConfigController.js';
+import { uploadSingleDocument, validateDocumentType } from '../../middlewares/uploadMiddleware.js';
+
 const adminRouter = express.Router();
 
 // Auth routes (public)
@@ -78,6 +81,17 @@ adminRouter.put('/applications/:applicationType/:applicationId/status',
 adminRouter.put('/documents/:documentType/:documentId/status', 
     validateUpdateDocumentStatus,
     asyncHandler(adminApplicationController.updateDocumentStatus)
+);
+adminRouter.put('/documents/:documentId/status', 
+    validateUpdateDocumentStatus,
+    asyncHandler(adminApplicationController.updateDocumentStatus)
+);
+adminRouter.put('/documents/:documentId/path',
+    authenticateAdmin,
+    validateDocumentType,
+     uploadSingleDocument,
+        handleUploadError,
+    asyncHandler(adminApplicationController.updateDocumentPath)
 );
 adminRouter.post('/applications/:applicationType/:applicationId/send-to-school', 
     requireRole(['super_admin', 'admin']), 
@@ -178,5 +192,8 @@ adminRouter.put('/exchange-rate',
     authenticateAdmin,
     updateExchangeRate
 );
+
+//apply for student
+adminRouter.post('/initiate',authenticateAdmin,adminApplicationController.initiateAdminApplication)
 
 export default adminRouter; 

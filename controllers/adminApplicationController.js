@@ -2,6 +2,7 @@ import * as adminApplicationService from '../service/adminApplicationService.js'
 import { messageHandler } from '../utils/index.js';
 import { BAD_REQUEST } from '../constants/statusCode.js';
 import ExcelJS from 'exceljs';
+import {updateDocumentPathService}  from '../service/documentService.js'
 
 // Get all applications
 export const getAllApplications = async (req, res) => {
@@ -139,6 +140,42 @@ export const updateDocumentStatus = async (req, res) => {
     }
 };
 
+export const updateDocumentPath = async (req, res) => {
+    try {
+        const { documentId } = req.params;
+        const { documentType, newPath } = req.body;
+        const userId = req.admin?.adminId || req.user?.userId; 
+        
+        if (!documentId || !documentType || !newPath) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler(
+                    "Document ID, type, and new path are required",
+                    false,
+                    BAD_REQUEST
+                )
+            );
+        }
+        
+        const result = await updateDocumentPathService(
+            documentId,
+            documentType,
+            newPath,
+            userId
+        );
+        
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Update document path error:', error);
+        return res.status(500).json(
+            messageHandler(
+                error.message || "Failed to update document path",
+                false,
+                500
+            )
+        );
+    }
+};
+
 // Send application to school
 export const sendApplicationToSchool = async (req, res) => {
     try {
@@ -249,3 +286,49 @@ export const updateApplicationIntake = async (req, res) => {
         });
     }
 }; 
+
+export const initiateAdminApplication = async (req, res) => {
+    try {
+        const { memberId, programId, programCategory, intake, paymentStatus, applicationStatus } = req.body;
+
+        // Validate required fields
+        if (!memberId || !programId || !programCategory || !intake || !paymentStatus || !applicationStatus) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler(
+                    "Member ID, Program ID, category, intake, payment status and application status are required", 
+                    false, 
+                    BAD_REQUEST
+                )
+            );
+        }
+
+        // Validate program category
+        if (!['undergraduate', 'postgraduate', 'phd'].includes(programCategory.toLowerCase())) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler(
+                    "Invalid program category. Must be undergraduate, postgraduate, or phd", 
+                    false, 
+                    BAD_REQUEST
+                )
+            );
+        }
+
+        await adminApplicationService.initiateAdminApplicationService(
+            memberId, 
+            { programId, programCategory, intake, paymentStatus, applicationStatus }, 
+            (response) => {
+                res.status(response.statusCode).json(response);
+            }
+        );
+
+    } catch (error) {
+        console.error('Initiate application controller error:', error);
+        res.status(BAD_REQUEST).json(
+            messageHandler(
+                error.message || "Error initiating application", 
+                false, 
+                BAD_REQUEST
+            )
+        );
+    }
+};

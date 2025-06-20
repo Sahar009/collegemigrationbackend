@@ -16,6 +16,7 @@ import { ActivityLog } from '../schema/ActivityLogSchema.js';
 import Notification from '../schema/NotificationSchema.js';
 import Wallet from '../schema/WalletSchema.js';
 import WalletTransaction from '../schema/WalletTransactionSchema.js';
+import { checkRequiredDocuments, REQUIRED_DOCUMENTS } from './applicationService.js';
 
 // Get all applications with filtering and pagination
 export const getAllApplicationsService = async (query) => {
@@ -1139,3 +1140,82 @@ export const updateApplicationIntakeService = async (applicationId, applicationT
         );
     }
 }; 
+
+export const initiateAdminApplicationService = async (memberId, programData, callback) => {
+    try {
+        // Verify profile completion
+        const isProfileComplete = await verifyMemberProfile(memberId);
+        if (!isProfileComplete) {
+            return callback(messageHandler(
+                "Please complete your profile before applying", 
+                false, 
+                BAD_REQUEST
+            ));
+        }
+
+        const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
+        if (!isComplete) {
+            const documentDescriptions = {
+                'International Passport': 'International Passport (must be valid for at least 6 months)',
+                'Olevel Result': 'O-Level Result (WAEC, NECO, or equivalent)',
+                'Olevel Pin': 'O-Level Result Checker PIN/Scratch Card',
+                'Academic Reference Letter': 'Academic Reference Letter from your previous institution',
+                'Resume': 'Updated CV/Resume (including your work experience and education)',
+                'Language Test Cert': 'English Language Proficiency Certificate (IELTS, TOEFL, or equivalent)',
+                'Birth Certificate': 'Birth Certificate or Age Declaration',
+                'Transcript': 'Official Academic Transcript from your previous institution',
+                'Degree Certificate': 'Bachelor\'s Degree Certificate or Statement of Result',
+                'Personal Statement': 'Personal Statement/Statement of Purpose',
+                'Recommendation Letter': 'Professional or Academic Recommendation Letter'
+            };
+
+            const formattedDocs = missingDocs.map(doc => documentDescriptions[doc] || doc);
+
+            return callback(messageHandler(
+                {
+                    message: "Required Documents Missing",
+                    details: {
+                        title: "Please upload the following documents to proceed:",
+                        missingDocuments: formattedDocs,
+                        note: "All documents should be clear, legible, and in PDF or JPG format. Maximum file size: 5MB per document.",
+                        totalMissing: missingDocs.length,
+                        helpText: "Need help? Contact our support team for guidance on document requirements."
+                    }
+                },
+                false,
+                BAD_REQUEST
+            ));
+        }
+
+        // Create new application
+        const application = await Application.create({
+            memberId,
+            programId: programData.programId,
+            programCategory: programData.programCategory,
+            applicationStage: 1,
+            paymentStatus:  programData.paymentStatus,
+            applicationStatus:  programData.applicationStatus,
+            intake: programData.intake,
+            applicationDate: new Date()
+        });
+
+        return callback(messageHandler(
+            "Application initiated successfully", 
+            true, 
+            SUCCESS, 
+            application
+        ));
+
+    } catch (error) {
+        console.error('Application initiation error:', error);
+        return callback(messageHandler(
+            error.message || "Error initiating application", 
+            false, 
+            BAD_REQUEST
+        ));
+    }
+};
+
+
+
+

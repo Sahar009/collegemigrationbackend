@@ -33,7 +33,7 @@ const verifyMemberProfile = async (memberId) => {
 };
 
 // Document requirements by program type
-const REQUIRED_DOCUMENTS = {
+export const REQUIRED_DOCUMENTS = {
     undergraduate: [
         'internationalPassport',
         'olevelResult',
@@ -56,7 +56,7 @@ const REQUIRED_DOCUMENTS = {
 };
 
 // Helper function to check required documents
-const checkRequiredDocuments = async (memberId, programCategory) => {
+export const checkRequiredDocuments = async (memberId, programCategory) => {
     try {
         // Get all documents for the member
         const documents = await ApplicationDocument.findAll({
@@ -135,7 +135,6 @@ export const initiateApplicationService = async (memberId, programData, callback
 
         const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
         if (!isComplete) {
-            // Create user-friendly document descriptions
             const documentDescriptions = {
                 'International Passport': 'International Passport (must be valid for at least 6 months)',
                 'Olevel Result': 'O-Level Result (WAEC, NECO, or equivalent)',
