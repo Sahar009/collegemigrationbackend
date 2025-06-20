@@ -1211,7 +1211,7 @@ export const initiateAdminApplicationService = async (memberId, programData, cal
         return callback(messageHandler(
             error.message || "Error initiating application", 
             false, 
-            BAD_REQUEST
+           400
         ));
     }
 };
