@@ -1191,7 +1191,7 @@ export const exportApplicationsService = async (query) => {
         return {
           ...baseData,
           'Agent ID': app.agent?.agentId || 'N/A',
-          'Agent Name': app.agent ? `${app.agent.firstName || ''} ${app.agent.lastName || ''}`.trim() : 'N/A',
+          'Agent Name': app.agent?.contactPerson || 'N/A',
           'Member Name': app.AgentStudent ? 
             `${app.AgentStudent.firstName || ''} ${app.AgentStudent.lastName || ''}`.trim() : 'N/A',
           'Email': app.AgentStudent?.email || 'N/A',
@@ -1251,7 +1251,7 @@ export const exportApplicationsService = async (query) => {
           include: [
             {
               model: Agent,
-              attributes: ['agentId', 'firstName', 'lastName']
+              attributes: ['agentId', 'contactPerson']
             },
             {
               model: AgentStudent,
