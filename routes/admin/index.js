@@ -141,6 +141,12 @@ adminRouter.get('/transactions', asyncHandler(adminTransactionController.getAllT
 adminRouter.get('/transactions/:transactionType/:transactionId', asyncHandler(adminTransactionController.getTransactionById));
 adminRouter.get('/transactions/export', asyncHandler(adminTransactionController.exportTransactions));
 
+// Application export route
+adminRouter.get('/applications/export', 
+    requireRole(['super_admin', 'admin']), 
+    asyncHandler(adminApplicationController.exportApplications)
+);
+
 //notification routes
 
 adminRouter.post('/notifications/send', asyncHandler(adminNotificationController.sendNotifications));

@@ -18,6 +18,7 @@ import Wallet from '../schema/WalletSchema.js';
 import WalletTransaction from '../schema/WalletTransactionSchema.js';
 import { checkRequiredDocuments, REQUIRED_DOCUMENTS, verifyMemberProfile } from './applicationService.js';
 import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
+import { Parser } from 'json2csv';
 
 
 // Get all applications with filtering and pagination
@@ -1142,6 +1143,195 @@ export const updateApplicationIntakeService = async (applicationId, applicationT
         );
     }
 }; 
+
+// Export applications to CSV
+export const exportApplicationsService = async (query) => {
+  try {
+    const { 
+      status,
+      programCategory,
+      startDate,
+      endDate,
+      applicationType = 'all' // 'all', 'direct', or 'agent'
+    } = query;
+    
+    // Build date filter
+    const dateFilter = {};
+    if (startDate && endDate) {
+      dateFilter.applicationDate = {
+        [Op.between]: [
+          new Date(startDate), 
+          new Date(new Date(endDate).setHours(23, 59, 59, 999))
+        ]
+      };
+    } else if (startDate) {
+      dateFilter.applicationDate = { [Op.gte]: new Date(startDate) };
+    } else if (endDate) {
+      dateFilter.applicationDate = { 
+        [Op.lte]: new Date(new Date(endDate).setHours(23, 59, 59, 999)) 
+      };
+    }
+    
+    // Build status filter
+    const statusFilter = status ? { applicationStatus: status } : {};
+    const categoryFilter = programCategory ? { programCategory } : {};
+    
+    // Helper function to format application data
+    const formatApplication = (app, type) => {
+      const baseData = {
+        'Application ID': app.applicationId,
+        'Application Type': type === 'agent' ? 'Agent' : 'Direct',
+        'Date': new Date(app.applicationDate).toLocaleString(),
+        'Status': app.applicationStatus,
+        'Payment Status': app.paymentStatus,
+        'Intake': app.intake || 'N/A'
+      };
+
+      if (type === 'agent') {
+        return {
+          ...baseData,
+          'Agent ID': app.agent?.agentId || 'N/A',
+          'Agent Name': app.agent ? `${app.agent.firstName || ''} ${app.agent.lastName || ''}`.trim() : 'N/A',
+          'Member Name': app.AgentStudent ? 
+            `${app.AgentStudent.firstName || ''} ${app.AgentStudent.lastName || ''}`.trim() : 'N/A',
+          'Email': app.AgentStudent?.email || 'N/A',
+          'Phone': app.AgentStudent?.phone || 'N/A',
+          'Program': app.Program?.programName || 'N/A',
+          'School ID': app.Program?.schoolId || 'N/A',
+          'Category': app.Program?.programCategory || 'N/A'
+        };
+      } else {
+        return {
+          ...baseData,
+          'Member Name': app.applicationMember ? 
+            `${app.applicationMember.firstName || ''} ${app.applicationMember.lastName || ''}`.trim() : 'N/A',
+          'Email': app.applicationMember?.email || 'N/A',
+          'Phone': app.applicationMember?.phone || 'N/A',
+          'Program': app.program?.programName || 'N/A',
+          'School ID': app.program?.schoolId || 'N/A',
+          'Category': app.programCategory || 'N/A'
+        };
+      }
+    };
+
+    // Fetch applications based on type
+    const fetchDirectApplications = async () => {
+      if (applicationType !== 'agent') {
+        return await Application.findAll({
+          where: {
+            ...dateFilter,
+            ...statusFilter,
+            ...categoryFilter
+          },
+          include: [
+            {
+              model: Member,
+              as: 'applicationMember',
+              attributes: ['firstName', 'lastName', 'email', 'phone']
+            },
+            {
+              model: Program,
+              as: 'program',
+              attributes: ['programName', 'schoolId', 'programCategory']
+            }
+          ],
+          order: [['applicationDate', 'DESC']]
+        });
+      }
+      return [];
+    };
+
+    const fetchAgentApplications = async () => {
+      if (applicationType !== 'direct') {
+        return await AgentApplication.findAll({
+          where: {
+            ...dateFilter,
+            ...statusFilter
+          },
+          include: [
+            {
+              model: Agent,
+              attributes: ['agentId', 'firstName', 'lastName']
+            },
+            {
+              model: AgentStudent,
+              attributes: ['firstName', 'lastName', 'email', 'phone']
+            },
+            {
+              model: Program,
+              attributes: ['programName', 'schoolId', 'programCategory']
+            }
+          ],
+          order: [['applicationDate', 'DESC']]
+        });
+      }
+      return [];
+    };
+
+    // Fetch both types of applications in parallel
+    const [directApps, agentApps] = await Promise.all([
+      fetchDirectApplications(),
+      fetchAgentApplications()
+    ]);
+
+    // Combine and format all applications
+    const allApplications = [
+      ...directApps.map(app => formatApplication(app, 'direct')),
+      ...agentApps.map(app => formatApplication(app, 'agent'))
+    ];
+
+    if (allApplications.length === 0) {
+      return messageHandler(
+        'No applications found matching the criteria',
+        false,
+        NOT_FOUND
+      );
+    }
+
+    // Create CSV parser with all possible fields
+    const fields = [
+      'Application ID',
+      'Application Type',
+      'Date',
+      'Agent ID',
+      'Agent Name',
+      'Member Name',
+      'Email',
+      'Phone',
+      'Program',
+      'School ID',
+      'Category',
+      'Status',
+      'Payment Status',
+      'Intake'
+    ];
+
+    const parser = new Parser({ fields });
+    const csv = parser.parse(allApplications);
+    const filename = `applications-export-${new Date().toISOString().split('T')[0]}.csv`;
+
+    return messageHandler(
+      'Applications exported successfully',
+      true,
+      SUCCESS,
+      {
+        csvData: csv,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="${filename}"`
+        }
+      }
+    );
+
+  } catch (error) {
+    console.error('Export applications error:', error);
+    return messageHandler(
+      error.message || 'Failed to export applications',
+      false,
+      BAD_REQUEST
+    );
+  }
+};
 
 export const initiateAdminApplicationService = async (memberId, programData, callback) => {
     try {

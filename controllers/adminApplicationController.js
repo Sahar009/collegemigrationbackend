@@ -235,6 +235,29 @@ export const exportApplicationToExcel = async (req, res) => {
     }
 };
 
+// Export applications to CSV
+export const exportApplications = async (req, res) => {
+    try {
+        const result = await adminApplicationService.exportApplicationsService(req.query);
+        
+        if (!result.success) {
+            return res.status(result.statusCode).json(result);
+        }
+        
+        // Set headers for file download
+        res.set(result.data.headers);
+        
+        // Send CSV data
+        return res.send(result.data.csvData);
+    } catch (error) {
+        console.error('Export applications error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to export applications'
+        });
+    }
+};
+
 export const notifyApplicant = async (req, res) => {
     try {
         const { id: applicationId } = req.params;
