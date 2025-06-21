@@ -315,7 +315,7 @@ export const getAllApplicationsService = async (memberId, callback) => {
                         'features',
                         'schoolLogo',
                         'applicationFee',
-                        'applicationDeadline'
+                        
                     ]
                 }
             ],
