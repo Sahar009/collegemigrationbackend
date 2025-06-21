@@ -134,7 +134,7 @@ export const getAllProgramsService = async (query, callback) => {
             offset: parseInt(offset),
             include: [{
                 model: School,
-                as: 'school',
+                // as: 'school',
                 attributes: ['applicationDeadline']
             }]
         });

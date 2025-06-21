@@ -2,7 +2,7 @@ import * as adminApplicationService from '../service/adminApplicationService.js'
 import { messageHandler } from '../utils/index.js';
 import { BAD_REQUEST } from '../constants/statusCode.js';
 import ExcelJS from 'exceljs';
-import {updateDocumentPathService}  from '../service/documentService.js'
+import { updateDocumentPathService, addMemberDocument } from '../service/documentService.js'
 
 // Get all applications
 export const getAllApplications = async (req, res) => {
@@ -309,6 +309,45 @@ export const updateApplicationIntake = async (req, res) => {
         });
     }
 }; 
+
+/**
+ * Add a document for a member
+ * @route POST /admin/members/:memberId/documents/:documentType
+ */
+export const addMemberDocumentController = async (req, res) => {
+    try {
+        const { memberId, documentType } = req.params;
+        const { path: documentPath } = req.file;
+        const adminId = req.user?.adminId;
+
+        if (!documentPath) {
+            return res.status(400).json(
+                messageHandler('No file uploaded', false, 400)
+            );
+        }
+
+        const result = await addMemberDocument(
+            memberId,
+            documentType,
+            documentPath,
+            null // agentId (null for admin uploads)
+        );
+
+        // Add admin activity log here if needed
+        // await logAdminActivity(adminId, 'ADD_DOCUMENT', { memberId, documentType });
+
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Error adding document:', error);
+        return res.status(500).json(
+            messageHandler(
+                error.message || 'Failed to add document',
+                false,
+                500
+            )
+        );
+    }
+};
 
 export const initiateAdminApplication = async (req, res) => {
     try {

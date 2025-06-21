@@ -14,7 +14,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Configure multer
+// Configure multer instances
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
@@ -22,6 +22,8 @@ const upload = multer({
         fileSize: 5 * 1024 * 1024 // 5MB
     }
 });
+
+
 
 // Keep existing uploadFields for other services
 export const uploadFields = upload.fields([
@@ -42,6 +44,7 @@ export const uploadFields = upload.fields([
 
 // Add single document upload
 export const uploadSingleDocument = upload.single('file');
+
 
 // Document type validation middleware
 export const validateDocumentType = (req, res, next) => {
@@ -93,3 +96,5 @@ export const handleUploadError = (err, req, res, next) => {
 export const messageAttachments = upload.fields([
     { name: 'attachments', maxCount: 5 }
 ]); 
+
+

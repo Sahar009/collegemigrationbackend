@@ -147,6 +147,14 @@ adminRouter.get('/applications/export',
     asyncHandler(adminApplicationController.exportApplications)
 );
 
+// Document management routes
+adminRouter.post('/members/:memberId/documents/:documentType',
+    requireRole(['super_admin', 'admin',"moderator"]),
+    uploadSingleDocument,
+    handleUploadError,
+    asyncHandler(adminApplicationController.addMemberDocumentController)
+);
+
 //notification routes
 
 adminRouter.post('/notifications/send', asyncHandler(adminNotificationController.sendNotifications));
