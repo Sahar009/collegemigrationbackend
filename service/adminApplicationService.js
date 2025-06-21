@@ -1198,7 +1198,7 @@ export const exportApplicationsService = async (query) => {
           'Phone': app.AgentStudent?.phone || 'N/A',
           'Program': app.Program?.programName || 'N/A',
           'School ID': app.Program?.schoolId || 'N/A',
-          'Category': app.Program?.programCategory || 'N/A'
+          'Category': app.programCategory || 'N/A'
         };
       } else {
         return {
@@ -1232,7 +1232,7 @@ export const exportApplicationsService = async (query) => {
             {
               model: Program,
               as: 'program',
-              attributes: ['programName', 'schoolId', 'programCategory']
+              attributes: ['programName', 'schoolId']
             }
           ],
           order: [['applicationDate', 'DESC']]
@@ -1259,7 +1259,7 @@ export const exportApplicationsService = async (query) => {
             },
             {
               model: Program,
-              attributes: ['programName', 'schoolId', 'programCategory']
+              attributes: ['programName', 'schoolId']
             }
           ],
           order: [['applicationDate', 'DESC']]
