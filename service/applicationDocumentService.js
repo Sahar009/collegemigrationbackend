@@ -160,8 +160,10 @@ export const deleteDocumentService = async (documentId, memberId, callback) => {
     try {
         // Find the document to be deleted
         const document = await ApplicationDocument.findOne({
-            _id: documentId,
-            memberId: memberId
+            where: {
+                documentId: documentId,
+                memberId: memberId
+            }
         });
 
         if (!document) {
@@ -177,10 +179,9 @@ export const deleteDocumentService = async (documentId, memberId, callback) => {
             fs.unlinkSync(document.documentPath);
         }
 
-        // Delete the document record from the database using Sequelize destroy
         await ApplicationDocument.destroy({
             where: {
-                id: documentId,
+                documentId: documentId,
                 memberId: memberId
             }
         });
