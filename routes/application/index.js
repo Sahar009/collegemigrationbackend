@@ -1,5 +1,10 @@
 import express from 'express';
-import { submitApplicationDocuments, getApplicationDocumentsByMember, updateApplicationDocument } from '../../controllers/applicationDocumentController.js';
+import { 
+    submitApplicationDocuments, 
+    getApplicationDocumentsByMember, 
+    updateApplicationDocument,
+    deleteDocument 
+} from '../../controllers/applicationDocumentController.js';
 import { authenticateUser } from '../../middlewares/auth-middleware.js';
 import { handleUploadError, uploadFields, validateDocumentType, uploadSingleDocument } from '../../middlewares/uploadMiddleware.js';
 import { checkEligibility, getAllApplications, getApplicationStatus, initiateApplication } from '../../controllers/applicationController.js';
@@ -17,6 +22,12 @@ applicationRouter.put('/documents',
 applicationRouter.get('/documents', 
     authenticateUser, 
     getApplicationDocumentsByMember
+);
+
+// Delete a document
+applicationRouter.delete('/documents/:documentId',
+    authenticateUser,
+    deleteDocument
 );
 
 // applicationRouter.put('/documents/:documentId', 

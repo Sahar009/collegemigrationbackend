@@ -1,4 +1,10 @@
-import { submitApplicationService, getApplicationDocuments, updateApplicationDocumentService, uploadSingleDocumentService } from '../service/applicationDocumentService.js';
+import { 
+    submitApplicationService, 
+    getApplicationDocuments, 
+    updateApplicationDocumentService, 
+    uploadSingleDocumentService,
+    deleteDocumentService 
+} from '../service/applicationDocumentService.js';
 import { messageHandler } from '../utils/index.js';
 import { BAD_REQUEST } from '../constants/statusCode.js';
 
@@ -95,21 +101,46 @@ export const updateApplicationDocument = async (req, res) => {
 export const uploadSingleDocument = async (req, res) => {
     try {
         const memberId = req.user.id;
-        const { documentType } = req.params;
-        const file = req.file;
+        const { documentType } = req.body;
+        const file = req.file; // Single file from multer
 
-        await uploadSingleDocumentService(
-            memberId,
-            documentType,
-            file,
-            (response) => {
-                res.status(response.statusCode).json(response);
-            }
-        );
+        if (!documentType) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler("Document type is required", false, BAD_REQUEST)
+            );
+        }
+
+        await uploadSingleDocumentService(memberId, documentType, file, (response) => {
+            res.status(response.statusCode).json(response);
+        });
+
     } catch (error) {
-        console.error('Upload document error:', error);
+        console.error('Upload single document error:', error);
         res.status(BAD_REQUEST).json(
             messageHandler(error.message || "Error uploading document", false, BAD_REQUEST)
+        );
+    }
+};
+
+export const deleteDocument = async (req, res) => {
+    try {
+        const memberId = req.user.id;
+        const { documentId } = req.params;
+
+        if (!documentId) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler("Document ID is required", false, BAD_REQUEST)
+            );
+        }
+
+        await deleteDocumentService(documentId, memberId, (response) => {
+            res.status(response.statusCode).json(response);
+        });
+
+    } catch (error) {
+        console.error('Delete document error:', error);
+        res.status(BAD_REQUEST).json(
+            messageHandler(error.message || "Error deleting document", false, BAD_REQUEST)
         );
     }
 };

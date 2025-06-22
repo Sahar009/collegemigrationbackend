@@ -1,7 +1,9 @@
 import { validateDocuments } from '../utils/documentValidator.js';
 import { messageHandler } from '../utils/index.js';
-import { SUCCESS, BAD_REQUEST } from '../constants/statusCode.js';
+import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
 import ApplicationDocument from '../schema/applicationDocumentSchema.js';
+import fs from 'fs';
+import path from 'path';
 
 export const submitApplicationService = async (memberId, programType, files, callback) => {
     try {
@@ -148,6 +150,46 @@ export const updateApplicationDocumentService = async (documentId, updateData, c
         console.error('Update document error:', error);
         return callback(messageHandler(
             error.message || "Error updating document",
+            false,
+            BAD_REQUEST
+        ));
+    }
+};
+
+export const deleteDocumentService = async (documentId, memberId, callback) => {
+    try {
+        // Find the document to be deleted
+        const document = await ApplicationDocument.findOne({
+            _id: documentId,
+            memberId: memberId
+        });
+
+        if (!document) {
+            return callback(messageHandler(
+                'Document not found or you do not have permission to delete it',
+                false,
+                NOT_FOUND
+            ));
+        }
+
+        // Delete the file from the filesystem
+        if (document.documentPath && fs.existsSync(document.documentPath)) {
+            fs.unlinkSync(document.documentPath);
+        }
+
+        // Delete the document record from the database
+        await ApplicationDocument.findByIdAndDelete(documentId);
+
+        return callback(messageHandler(
+            'Document deleted successfully',
+            true,
+            SUCCESS
+        ));
+
+    } catch (error) {
+        console.error('Error deleting document:', error);
+        return callback(messageHandler(
+            error.message || 'Error deleting document',
             false,
             BAD_REQUEST
         ));
