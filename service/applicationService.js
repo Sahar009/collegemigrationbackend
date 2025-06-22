@@ -236,7 +236,6 @@ export const getApplicationStatusService = async (memberId, applicationId, callb
                         'features',
                         'schoolLogo',
                         'applicationFee',
-                        'applicationDeadline'
                     ]
                 }
             ],

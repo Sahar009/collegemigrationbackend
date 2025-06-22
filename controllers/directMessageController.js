@@ -66,3 +66,32 @@ export const getAllConversations = async (userId, userType) => {
         };
     }
 };
+
+export const getDirectMessages = async (req, res) => {
+    try {
+        const { userId, userType } = req.user;
+        const { partnerId, partnerType } = req.params;
+
+        if (!partnerId || !partnerType) {
+            return res.status(400).json({
+                success: false,
+                message: 'Partner ID and type are required'
+            });
+        }
+
+        const result = await getDirectMessages(
+            userId,
+            userType,
+            partnerId,
+            partnerType
+        );
+
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Get direct messages controller error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server error'
+        });
+    }
+};

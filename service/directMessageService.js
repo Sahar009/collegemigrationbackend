@@ -273,3 +273,40 @@ export const fetchConversations = (userType = 'member') => async (dispatch) => {
     throw error;
   }
 };
+
+export const getDirectMessages = async (userId, userType, partnerId, partnerType) => {
+    try {
+        const messages = await DirectMessage.findAll({
+            where: {
+                [Op.or]: [
+                    {
+                        senderId: userId,
+                        senderType: userType,
+                        receiverId: partnerId,
+                        receiverType: partnerType
+                    },
+                    {
+                        senderId: partnerId,
+                        senderType: partnerType,
+                        receiverId: userId,
+                        receiverType: userType
+                    }
+                ]
+            },
+            order: [['createdAt', 'ASC']]
+        });
+
+        return {
+            success: true,
+            statusCode: 200,
+            data: messages
+        };
+    } catch (error) {
+        console.error('Get direct messages error:', error);
+        return {
+            success: false,
+            statusCode: 500,
+            message: 'Failed to get messages'
+        };
+    }
+};

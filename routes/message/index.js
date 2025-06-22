@@ -1,5 +1,5 @@
 import express from 'express';
-import { sendMessage, getConversation, getAllConversations } from '../../controllers/directMessageController.js'
+import { sendMessage, getConversation, getAllConversations, getDirectMessages } from '../../controllers/directMessageController.js'
 import { authenticateAdmin } from '../../middleware/adminAuthMiddleware.js';
 
 import { authenticateUser } from '../../middlewares/auth-middleware.js';
@@ -170,4 +170,11 @@ messageRouter.get('/member/messages/:partnerId',
     }
   }
 );
+
+messageRouter.get(
+  '/:partnerId/:partnerType/messages',
+  authenticateUser,
+  getDirectMessages
+);
+
 export default messageRouter;
