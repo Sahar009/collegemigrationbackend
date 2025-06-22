@@ -1,6 +1,7 @@
 import { 
     createDirectMessage,
     getConversationThread,
+    getDirectMessages as fetchDirectMessages,
     markAsRead,
     getAllUserConversations
 } from '../service/directMessageService.js';
@@ -69,7 +70,7 @@ export const getAllConversations = async (userId, userType) => {
 
 export const getDirectMessages = async (req, res) => {
     try {
-        const { userId, userType } = req.user;
+        const { id: userId, type: userType } = req.user; // Updated to match your auth structure
         const { partnerId, partnerType } = req.params;
 
         if (!partnerId || !partnerType) {
@@ -79,19 +80,19 @@ export const getDirectMessages = async (req, res) => {
             });
         }
 
-        const result = await getDirectMessages(
+        const result = await fetchDirectMessages( // Use the renamed import
             userId,
             userType,
             partnerId,
             partnerType
         );
 
-        return res.status(result.statusCode).json(result);
+        return res.status(result.statusCode || 200).json(result);
     } catch (error) {
         console.error('Get direct messages controller error:', error);
         return res.status(500).json({
             success: false,
-            message: 'Server error'
+            message: error.message || 'Server error'
         });
     }
 };
