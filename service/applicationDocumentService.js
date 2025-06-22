@@ -177,8 +177,13 @@ export const deleteDocumentService = async (documentId, memberId, callback) => {
             fs.unlinkSync(document.documentPath);
         }
 
-        // Delete the document record from the database
-        await ApplicationDocument.findByIdAndDelete(documentId);
+        // Delete the document record from the database using Sequelize destroy
+        await ApplicationDocument.destroy({
+            where: {
+                id: documentId,
+                memberId: memberId
+            }
+        });
 
         return callback(messageHandler(
             'Document deleted successfully',
