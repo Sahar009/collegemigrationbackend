@@ -9,6 +9,8 @@ import { Op } from 'sequelize';
 import { generateReference } from '../utils/reference.js';
 import sequelize from '../database/db.js';
 
+
+const baseUrl = process.env.FRONTEND_URL || "https://collegemigrationmain.vercel.app/";
 // Agent Registration
 export const registerAgent = async (data) => {
     const t = await sequelize.transaction();
@@ -112,9 +114,9 @@ export const registerAgent = async (data) => {
             template: 'agentVerification',
             context: {
                 name: contactPerson,
-                verificationLink: `${process.env.BASE_URL}/verify-agent/${token}`,
+                verificationLink: `${baseUrl}/verify-agent/${token}`,
                 referralCode, // Include referral code in email
-                referralLink: `${process.env.FRONTEND_URL}/register?ref=${referralCode}&type=Agent&id=${newAgent.agentId}`
+                referralLink: `${baseUrl}/register?ref=${referralCode}&type=Agent&id=${newAgent.agentId}`
             }
         });
 
@@ -129,7 +131,7 @@ export const registerAgent = async (data) => {
                 email: newAgent.email,
                 status: newAgent.status,
                 referralCode,
-                referralLink: `${process.env.FRONTEND_URL}/register?ref=${referralCode}&type=Agent&id=${newAgent.agentId}`
+                referralLink: `${baseUrl}/register?ref=${referralCode}&type=Agent&id=${newAgent.agentId}`
             }
         );
 
@@ -164,7 +166,7 @@ export const loginAgent = async (email, password) => {
             await agent.update({ referralCode });
         }
 
-        const referralLink = `${process.env.FRONTEND_URL}/register?ref=${referralCode}&type=Agent&id=${agent.agentId}`;
+        const referralLink = `${baseUrl}/register?ref=${referralCode}&type=Agent&id=${agent.agentId}`;
 
         // Generate token
         const token = jwt.sign(

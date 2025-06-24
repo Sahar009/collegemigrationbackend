@@ -23,6 +23,8 @@ const generateResetCode = () => {
     return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
+const baseUrl = process.env.FRONTEND_URL || "https://collegemigrationmain.vercel.app/";
+
 export const registerService = async (data, callback) => {
     // Validate callback is a function
     if (typeof callback !== 'function') {
@@ -209,7 +211,7 @@ export const loginService = async (data, callback) => {
             await member.update({ referralCode });
         }
 
-        const referralLink = `${process.env.FRONTEND_URL}/register?ref=${referralCode}&type=Member&id=${member.memberId}`;
+        const referralLink = `${baseUrl}/register?ref=${referralCode}&type=Member&id=${member.memberId}`;
 
         return callback(
             messageHandler(MESSAGES.AUTH.LOGIN_SUCCESS, true, SUCCESS, {
@@ -347,7 +349,7 @@ export const getUserProfileService = async (memberId, callback) => {
             regDate: member.regDate,
             lastUpdate: member.lastUpdate,
             referralCode:member.referralCode,
-            referralLink: `${process.env.FRONTEND_URL}/register?ref=${member.referralCode}&type=Member&id=${member.memberId}`
+            referralLink: `${baseUrl}/register?ref=${member.referralCode}&type=Member&id=${member.memberId}`
         };
 
         return callback(

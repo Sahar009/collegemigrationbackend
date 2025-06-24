@@ -157,16 +157,30 @@ export const updateApplicationDocumentService = async (documentId, updateData, c
 };
 
 export const deleteDocumentService = async (documentId, memberId, callback) => {
+    const transaction = await ApplicationDocument.sequelize.transaction();
+    
     try {
+        // Validate input
+        if (!documentId || !memberId) {
+            await transaction.rollback();
+            return callback(messageHandler(
+                'Document ID and Member ID are required',
+                false,
+                BAD_REQUEST
+            ));
+        }
+
         // Find the document to be deleted
         const document = await ApplicationDocument.findOne({
             where: {
                 documentId: documentId,
                 memberId: memberId
-            }
+            },
+            transaction
         });
 
         if (!document) {
+            await transaction.rollback();
             return callback(messageHandler(
                 'Document not found or you do not have permission to delete it',
                 false,
@@ -174,18 +188,32 @@ export const deleteDocumentService = async (documentId, memberId, callback) => {
             ));
         }
 
-        // Delete the file from the filesystem
-        if (document.documentPath && fs.existsSync(document.documentPath)) {
-            fs.unlinkSync(document.documentPath);
+        // Delete the file from the filesystem asynchronously
+        if (document.documentPath) {
+            try {
+                // Security check: Prevent directory traversal
+                const safePath = path.normalize(document.documentPath).replace(/^(\.\.[\/\\])+/, '');
+                
+                if (fs.existsSync(safePath)) {
+                    await fs.promises.unlink(safePath);
+                }
+            } catch (fileError) {
+                console.error('Error deleting file:', fileError);
+                // Continue with DB deletion even if file deletion fails
+            }
         }
 
+        // Delete the document record
         await ApplicationDocument.destroy({
             where: {
                 documentId: documentId,
                 memberId: memberId
-            }
+            },
+            transaction
         });
 
+        await transaction.commit();
+        
         return callback(messageHandler(
             'Document deleted successfully',
             true,
@@ -193,9 +221,15 @@ export const deleteDocumentService = async (documentId, memberId, callback) => {
         ));
 
     } catch (error) {
-        console.error('Error deleting document:', error);
+        await transaction.rollback();
+        console.error('Error in deleteDocumentService:', error);
+        
+        const errorMessage = process.env.NODE_ENV === 'development' 
+            ? error.message 
+            : 'Failed to delete document. Please try again.';
+            
         return callback(messageHandler(
-            error.message || 'Error deleting document',
+            errorMessage,
             false,
             BAD_REQUEST
         ));

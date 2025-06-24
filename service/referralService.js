@@ -11,6 +11,9 @@ import { REFERRAL_STATUS, getCommissionRates } from '../constants/referral.js';
 import { generateReference } from '../utils/reference.js';
 import { Agent } from '../schema/AgentSchema.js';
 
+
+const baseUrl = process.env.FRONTEND_URL || "https://collegemigrationmain.vercel.app/";
+
 export const registerMemberWithReferral = async (data) => {
     try {
         const {
@@ -345,7 +348,6 @@ export const generateReferralLink = async (userId, userType) => {
             );
         }
 
-        const baseUrl = process.env.FRONTEND_URL;
         const referralLink = `${baseUrl}/register?ref=${referralCode}&type=${userType}&id=${userId}`;
 
         return messageHandler(
