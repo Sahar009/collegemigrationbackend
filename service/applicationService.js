@@ -5,6 +5,7 @@ import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
 import Application from '../schema/ApplicationSchema.js';
 import { Op } from 'sequelize';
 import {Program} from '../schema/programSchema.js';
+import { getConfig } from './appConfigService.js';
 
 // Check active applications count
 const checkActiveApplicationsCount = async (memberId) => {
@@ -112,7 +113,7 @@ export const checkRequiredDocuments = async (memberId, programCategory) => {
     }
 };
 
-export const initiateApplicationService = async (memberId, programData, callback) => {
+export const initiateApplicationService = async (memberId, programData, callback, requireDocumentValidation = true) => {
     try {
          // Check active applications limit
         // const canApply = await checkActiveApplicationsCount(memberId);
@@ -133,38 +134,43 @@ export const initiateApplicationService = async (memberId, programData, callback
             ));
         }
 
-        const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
-        if (!isComplete) {
-            const documentDescriptions = {
-                'International Passport': 'International Passport (must be valid for at least 6 months)',
-                'Olevel Result': 'O-Level Result (WAEC, NECO, or equivalent)',
-                'Olevel Pin': 'O-Level Result Checker PIN/Scratch Card',
-                'Academic Reference Letter': 'Academic Reference Letter from your previous institution',
-                'Resume': 'Updated CV/Resume (including your work experience and education)',
-                'Language Test Cert': 'English Language Proficiency Certificate (IELTS, TOEFL, or equivalent)',
-                'Birth Certificate': 'Birth Certificate or Age Declaration',
-                'Transcript': 'Official Academic Transcript from your previous institution',
-                'Degree Certificate': 'Bachelor\'s Degree Certificate or Statement of Result',
-                'Personal Statement': 'Personal Statement/Statement of Purpose',
-                'Recommendation Letter': 'Professional or Academic Recommendation Letter'
-            };
+        // Check if document validation is required from config
+        const requireDocValidation = await getConfig('require_document_validation');
+        
+        if (requireDocValidation) {
+            const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
+            if (!isComplete) {
+                const documentDescriptions = {
+                    'International Passport': 'International Passport (must be valid for at least 6 months)',
+                    'Olevel Result': 'O-Level Result (WAEC, NECO, or equivalent)',
+                    'Olevel Pin': 'O-Level Result Checker PIN/Scratch Card',
+                    'Academic Reference Letter': 'Academic Reference Letter from your previous institution',
+                    'Resume': 'Updated CV/Resume (including your work experience and education)',
+                    'Language Test Cert': 'English Language Proficiency Certificate (IELTS, TOEFL, or equivalent)',
+                    'Birth Certificate': 'Birth Certificate or Age Declaration',
+                    'Transcript': 'Official Academic Transcript from your previous institution',
+                    'Degree Certificate': 'Bachelor\'s Degree Certificate or Statement of Result',
+                    'Personal Statement': 'Personal Statement/Statement of Purpose',
+                    'Recommendation Letter': 'Professional or Academic Recommendation Letter'
+                };
 
-            const formattedDocs = missingDocs.map(doc => documentDescriptions[doc] || doc);
+                const formattedDocs = missingDocs.map(doc => documentDescriptions[doc] || doc);
 
-            return callback(messageHandler(
-                {
-                    message: "Required Documents Missing",
-                    details: {
-                        title: "Please upload the following documents to proceed:",
-                        missingDocuments: formattedDocs,
-                        note: "All documents should be clear, legible, and in PDF or JPG format. Maximum file size: 5MB per document.",
-                        totalMissing: missingDocs.length,
-                        helpText: "Need help? Contact our support team for guidance on document requirements."
-                    }
-                },
-                false,
-                BAD_REQUEST
-            ));
+                return callback(messageHandler(
+                    {
+                        message: "Required Documents Missing",
+                        details: {
+                            title: "Please upload the following documents to proceed:",
+                            missingDocuments: formattedDocs,
+                            note: "All documents should be clear, legible, and in PDF or JPG format. Maximum file size: 5MB per document.",
+                            totalMissing: missingDocs.length,
+                            helpText: "Need help? Contact our support team for guidance on document requirements."
+                        }
+                    },
+                    false,
+                    BAD_REQUEST
+                ));
+            }
         }
 
         // Create new application

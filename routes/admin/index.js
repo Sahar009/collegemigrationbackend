@@ -40,6 +40,7 @@ import { getTuitionPaymentsController } from '../../controllers/tuitionPaymentCo
 import { updateExchangeRate } from '../../controllers/paymentConfigController.js';
 import { uploadSingleDocument, validateDocumentType } from '../../middlewares/uploadMiddleware.js';
 
+
 const adminRouter = express.Router();
 
 // Auth routes (public)
@@ -209,5 +210,27 @@ adminRouter.put('/exchange-rate',
 
 //apply for student
 adminRouter.post('/initiate',authenticateAdmin,adminApplicationController.initiateAdminApplication)
+
+
+adminRouter.get('/', authenticateAdmin, (req, res) => {
+    return getAllConfigs((response) => {
+        res.status(response.status).json(response);
+    });
+});
+
+adminRouter.put('/', authenticateAdmin, (req, res) => {
+    const configUpdates = req.body;
+    
+    if (!configUpdates || Object.keys(configUpdates).length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'No configuration updates provided'
+        });
+    }
+
+    return updateConfigs(configUpdates, (response) => {
+        res.status(response.status).json(response);
+    });
+});
 
 export default adminRouter; 
