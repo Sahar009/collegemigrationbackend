@@ -39,6 +39,7 @@ import * as referralController from '../../controllers/referralController.js';
 import { getTuitionPaymentsController } from '../../controllers/tuitionPaymentController.js';
 import { updateExchangeRate } from '../../controllers/paymentConfigController.js';
 import { uploadSingleDocument, validateDocumentType } from '../../middlewares/uploadMiddleware.js';
+import { getAllConfigs, updateConfigs } from '../../service/appConfigService.js';
 
 
 const adminRouter = express.Router();
@@ -212,13 +213,19 @@ adminRouter.put('/exchange-rate',
 adminRouter.post('/initiate',authenticateAdmin,adminApplicationController.initiateAdminApplication)
 
 
-adminRouter.get('/', authenticateAdmin, (req, res) => {
-    return getAllConfigs((response) => {
-        res.status(response.status).json(response);
-    });
+adminRouter.get('/config', authenticateAdmin, async (req, res) => {
+    try {
+        const response = await getAllConfigs();
+        res.status(response.statusCode).json(response);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
 });
-
-adminRouter.put('/', authenticateAdmin, (req, res) => {
+adminRouter.put('/config', authenticateAdmin, async (req, res) => {
     const configUpdates = req.body;
     
     if (!configUpdates || Object.keys(configUpdates).length === 0) {
@@ -228,9 +235,15 @@ adminRouter.put('/', authenticateAdmin, (req, res) => {
         });
     }
 
-    return updateConfigs(configUpdates, (response) => {
-        res.status(response.status).json(response);
-    });
+    try {
+        const response = await updateConfigs(configUpdates);
+        res.status(response.statusCode).json(response);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update configurations',
+            error: error.message
+        });
+    }
 });
-
 export default adminRouter; 

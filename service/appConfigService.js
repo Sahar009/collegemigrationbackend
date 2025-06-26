@@ -1,5 +1,4 @@
 import { AppConfig } from '../schema/appConfigSchema.js';
-import { SUCCESS, BAD_REQUEST } from '../constants/statusCode.js';
 import { messageHandler } from '../utils/index.js';
 
 // Default configuration values
@@ -32,14 +31,30 @@ export const getConfig = async (key) => {
                     value: DEFAULT_CONFIGS[key],
                     description: `Auto-created config for ${key}`
                 });
-                return DEFAULT_CONFIGS[key] === 'true';
+                return messageHandler(
+                    'Config retrieved successfully',
+                    true,
+                    200,
+                    { [key]: DEFAULT_CONFIGS[key] === 'true' }
+                );
             }
-            return null;
+            return messageHandler('Config not found', false, 404);
         }
-        return config.value === 'true';
+        return {
+            message: 'Config retrieved successfully',
+            success: true,
+            statusCode: 200,
+            data: { [key]: config.value === 'true' }
+        };
     } catch (error) {
         console.error('Error getting config:', error);
-        return key in DEFAULT_CONFIGS ? DEFAULT_CONFIGS[key] === 'true' : null;
+        console.error('Error in getConfig:', error);
+        return {
+            message: error.message || 'Failed to retrieve config',
+            success: false,
+            statusCode: error.status || 500,
+            error: error.message
+        };
     }
 };
 
@@ -50,14 +65,26 @@ export const setConfig = async (key, value, description = '') => {
             value: String(value),
             description: description || `Configuration for ${key}`
         });
-        return config;
+        
+        return {
+            message: 'Config updated successfully',
+            success: true,
+            statusCode: 200,
+            data: { [key]: config[0]?.value === 'true' }
+        };
     } catch (error) {
         console.error('Error setting config:', error);
-        throw error;
+        console.error('Error in setConfig:', error);
+        return messageHandler(
+            error.message || 'Failed to update config',
+            false,
+            error.status || 500, // Default to 500 if no status provided
+            { error: error.message }
+        );
     }
 };
 
-export const getAllConfigs = async (callback) => {
+export const getAllConfigs = async () => {
     try {
         await initializeDefaultConfigs();
         const configs = await AppConfig.findAll();
@@ -75,23 +102,25 @@ export const getAllConfigs = async (callback) => {
             }
         });
 
-        return callback(messageHandler(
-            'Configuration retrieved successfully',
-            true,
-            SUCCESS,
-            configObj
-        ));
+        return {
+            message: 'Configurations retrieved successfully',
+            success: true,
+            statusCode: 200,
+            data: configObj
+        };
     } catch (error) {
         console.error('Error getting configurations:', error);
-        return callback(messageHandler(
-            'Failed to retrieve configurations',
+        console.error('Error in getAllConfigs:', error);
+        return messageHandler(
+            error.message || 'Failed to retrieve configurations',
             false,
-            BAD_REQUEST
-        ));
+            error.status || 500, // Default to 500 if no status provided
+            { error: error.message }
+        );
     }
 };
 
-export const updateConfigs = async (configUpdates, callback) => {
+export const updateConfigs = async (configUpdates) => {
     try {
         const updates = [];
         
@@ -106,18 +135,31 @@ export const updateConfigs = async (configUpdates, callback) => {
 
         await Promise.all(updates);
         
-        return callback(messageHandler(
-            'Configurations updated successfully',
-            true,
-            SUCCESS
-        ));
+        // Get updated configs
+        const updatedConfigs = await AppConfig.findAll({
+            where: { key: Object.keys(configUpdates) }
+        });
+
+        const result = {};
+        updatedConfigs.forEach(config => {
+            result[config.key] = config.value === 'true';
+        });
+
+        return {
+            message: 'Configurations updated successfully',
+            success: true,
+            statusCode: 200,
+            data: result
+        };
     } catch (error) {
         console.error('Error updating configurations:', error);
-        return callback(messageHandler(
-            'Failed to update configurations',
+        console.error('Error in updateConfigs:', error);
+        return messageHandler(
+            error.message || 'Failed to update configurations',
             false,
-            BAD_REQUEST
-        ));
+            error.status || 500, // Default to 500 if no status provided
+            { error: error.message }
+        );
     }
 };
 
