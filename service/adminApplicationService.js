@@ -1348,7 +1348,6 @@ export const initiateAdminApplicationService = async (memberId, programData, cal
 
         // Check if document validation is required from config
         const requireDocValidation = await getConfig('admin_application_document');
-        console.log('hh',requireDocValidation.data.admin_application_document)
         if (requireDocValidation.data.admin_application_document) {
             const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
             if (!isComplete) {

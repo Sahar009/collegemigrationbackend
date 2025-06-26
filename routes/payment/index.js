@@ -30,7 +30,6 @@ paymentRouter.get('/verify/:provider/:reference',
 
 
 paymentRouter.get('/exchange-rates',
-    authenticateAdmin,
     getExchangeRates
 );
 
