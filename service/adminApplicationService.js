@@ -19,6 +19,7 @@ import WalletTransaction from '../schema/WalletTransactionSchema.js';
 import { checkRequiredDocuments, REQUIRED_DOCUMENTS, verifyMemberProfile } from './applicationService.js';
 import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
 import { Parser } from 'json2csv';
+import { getConfig } from './appConfigService.js';
 
 
 // Get all applications with filtering and pagination
