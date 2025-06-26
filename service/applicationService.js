@@ -137,7 +137,7 @@ export const initiateApplicationService = async (memberId, programData, callback
         // Check if document validation is required from config
         const requireDocValidation = await getConfig('require_document_validation');
         
-        if (requireDocValidation) {
+        if (requireDocValidation.data.require_document_validation) {
             const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
             if (!isComplete) {
                 const documentDescriptions = {
