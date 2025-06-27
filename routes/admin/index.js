@@ -126,7 +126,11 @@ adminRouter.get('/programs/:programId', asyncHandler(adminProgramController.getP
 adminRouter.post('/programs', asyncHandler(adminProgramController.createProgram));
 adminRouter.put('/programs/:programId', asyncHandler(adminProgramController.updateProgram));
 adminRouter.put('/programs/:programId/status', asyncHandler(adminProgramController.toggleProgramStatus));
-adminRouter.post('/programs/import', asyncHandler(adminProgramController.importProgramsFromCSV));
+adminRouter.post('/programs/import', 
+    requireRole(['super_admin', 'admin']),
+    uploadCSV,
+    asyncHandler(adminProgramController.importProgramsFromCSV)
+);
 adminRouter.get('/programs/export', asyncHandler(adminProgramController.exportPrograms));
 adminRouter.patch('/programs/:id/status', asyncHandler(toggleProgramStatusController));
 
