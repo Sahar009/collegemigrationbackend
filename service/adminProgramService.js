@@ -251,6 +251,7 @@ export const toggleProgramStatusService = async (programId) => {
 
 // Import programs from CSV
 export const importProgramsFromCSVService = async (filePath) => {
+  console.log('Starting CSV import from file:', filePath);
   const t = await sequelize.transaction();
   
   try {
@@ -259,65 +260,83 @@ export const importProgramsFromCSVService = async (filePath) => {
     let rowCount = 0;
     
     // Process CSV file
-    await new Promise((resolve, reject) => {
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', async (row) => {
-          rowCount++;
-          
-          // Validate required fields
-          if (!row.programName || !row.schoolId || !row.degree || !row.category) {
-            errors.push(`Row ${rowCount}: Missing required fields (programName, schoolId, degree, category)`);
-            return;
-          }
-
-          // Validate category
-          const validCategories = [
-            'undergraduate', 'postgraduate', 'phd', '1-Year Certificate',
-            '2-Year Diploma', '3-Year Advanced Diploma', '3-Year Bachelor',
-            'Top-up Degree', '4-Year Bachelor', 'Integrated Masters',
-            'Postgraduate Certificate', 'Postgraduate Diploma',
-            'Masters Degree', 'Doctoral/PhD', 'Non-Credential'
-          ];
-          
-          if (!validCategories.includes(row.category)) {
-            errors.push(`Row ${rowCount}: Invalid category. Must be one of: ${validCategories.join(', ')}`);
-            return;
-          }
-          
-          // Check if school exists
-          const school = await School.findByPk(row.schoolId, { transaction: t });
-          
-          if (!school) {
-            errors.push(`Row ${rowCount}: School with ID ${row.schoolId} not found`);
-            return;
-          }
-          
-          // Prepare program data
-          const programData = {
-            programName: row.programName,
-            schoolId: row.schoolId,
-            schoolName: school.schoolName,
-            degree: row.degree,
-            degreeLevel: row.degreeLevel || row.degree, // Fallback to degree if degreeLevel not provided
-            category: row.category,
-            language: row.language || 'English',
-            semesters: row.semesters || '2', // Default to 2 semesters if not provided
-            fee: parseFloat(row.fee) || 0,
-            feeCurrency: row.feeCurrency || 'USD',
-            location: row.location || school.location || 'Not specified',
-            about: row.about || `${row.programName} program at ${school.schoolName}`,
-            features: row.features || null,
-            applicationFee: parseFloat(row.applicationFee) || 0,
-            applicationDeadline: row.applicationDeadline || null,
-            isActive: row.isActive === 'true' || row.isActive === '1' || true
-          };
-          
-          programs.push(programData);
-        })
-        .on('end', resolve)
+    console.log('Starting to process CSV file...');
+    
+    // Read the entire file first
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const rows = await new Promise((resolve, reject) => {
+      const results = [];
+      const parser = csv()
+        .on('data', (data) => results.push(data))
+        .on('end', () => resolve(results))
         .on('error', reject);
+      
+      parser.write(fileContent);
+      parser.end();
     });
+
+    // Process each row sequentially
+    for (const [index, row] of rows.entries()) {
+      rowCount = index + 1;
+      console.log(`Processing row ${rowCount}:`, row);
+      
+      // Validate required fields
+      if (!row.programName || !row.schoolId || !row.degree || !row.category) {
+        errors.push(`Row ${rowCount}: Missing required fields (programName, schoolId, degree, category)`);
+        continue;
+      }
+
+      // Validate category
+      const validCategories = [
+        'undergraduate', 'postgraduate', 'phd', '1-Year Certificate',
+        '2-Year Diploma', '3-Year Advanced Diploma', '3-Year Bachelor',
+        'Top-up Degree', '4-Year Bachelor', 'Integrated Masters',
+        'Postgraduate Certificate', 'Postgraduate Diploma',
+        'Masters Degree', 'Doctoral/PhD', 'Non-Credential'
+      ];
+      
+      if (!validCategories.includes(row.category)) {
+        errors.push(`Row ${rowCount}: Invalid category. Must be one of: ${validCategories.join(', ')}`);
+        continue;
+      }
+      
+      // Check if school exists
+      console.log(`Looking up school with ID: ${row.schoolId}`);
+      const school = await School.findByPk(row.schoolId, { transaction: t });
+      
+      if (!school) {
+        const errorMsg = `Row ${rowCount}: School with ID ${row.schoolId} not found`;
+        console.error(errorMsg);
+        errors.push(errorMsg);
+        continue;
+      }
+      
+      // Prepare program data
+      const programData = {
+        programName: row.programName,
+        schoolId: row.schoolId,
+        schoolName: school.schoolName,
+        degree: row.degree,
+        degreeLevel: row.degreeLevel || row.degree, // Fallback to degree if degreeLevel not provided
+        category: row.category,
+        language: row.language || 'English',
+        semesters: row.semesters || '2', // Default to 2 semesters if not provided
+        fee: parseFloat(row.fee) || 0,
+        feeCurrency: row.feeCurrency || 'USD',
+        location: row.location || school.location || 'Not specified',
+        about: row.about || `${row.programName} program at ${school.schoolName}`,
+        features: row.features || null,
+        applicationFee: parseFloat(row.applicationFee) || 0,
+        applicationDeadline: row.applicationDeadline || null,
+        isActive: row.isActive === 'true' || row.isActive === '1' || true
+      };
+      
+      console.log(`Prepared program data for import:`, programData);
+      programs.push(programData);
+    }
+    
+    console.log(`Finished processing CSV. Found ${errors.length} errors.`);
+    console.log(`Prepared ${programs.length} programs for import.`);
     
     // If there are errors, rollback and return them
     if (errors.length > 0) {
@@ -331,10 +350,13 @@ export const importProgramsFromCSVService = async (filePath) => {
     }
     
     // Bulk create programs
+    console.log('Attempting to bulk create programs...');
     const createdPrograms = await Program.bulkCreate(programs, { 
       transaction: t,
-      returning: true 
+      returning: true,
+      validate: true
     });
+    console.log(`Bulk create result:`, createdPrograms.length, 'programs created');
     
     await t.commit();
     
