@@ -1,5 +1,5 @@
 import multer from 'multer';
-import { storage } from '../config/cloudinary.js';
+import { storage } from '../config/cloudinaryConfig.js';
 import path from 'path';
 
 // Define allowed file types
@@ -113,7 +113,7 @@ const csvUpload = multer({
         }
     },
     limits: {
-        fileSize: 10 * 1024 * 1024 // 5MB
+        fileSize: 10 * 1024 * 1024 // 10MB
     }
 });
 
