@@ -1,5 +1,6 @@
 import multer from 'multer';
-import { storage } from '../config/cloudinaryConfig.js';
+import { storage } from '../config/cloudinary.js';
+import path from 'path';
 
 // Define allowed file types
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
@@ -95,6 +96,27 @@ export const handleUploadError = (err, req, res, next) => {
 // Add to existing upload config
 export const messageAttachments = upload.fields([
     { name: 'attachments', maxCount: 5 }
-]); 
+]);
+
+// CSV file upload configuration
+const csvUpload = multer({
+    dest: 'uploads/csv/', // Temporary storage for CSV files
+    fileFilter: (req, file, cb) => {
+        const filetypes = /csv/;
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = filetypes.test(file.mimetype);
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only .csv files are allowed!'));
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 5MB
+    }
+});
+
+export const uploadCSV = csvUpload.single('file');
 
 

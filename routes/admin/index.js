@@ -38,7 +38,7 @@ import { toggleProgramStatusController } from '../../controllers/programControll
 import * as referralController from '../../controllers/referralController.js';
 import { getTuitionPaymentsController } from '../../controllers/tuitionPaymentController.js';
 import { updateExchangeRate } from '../../controllers/paymentConfigController.js';
-import { uploadSingleDocument, validateDocumentType } from '../../middlewares/uploadMiddleware.js';
+import { uploadSingleDocument, validateDocumentType, uploadCSV } from '../../middlewares/uploadMiddleware.js';
 import { getAllConfigs, updateConfigs } from '../../service/appConfigService.js';
 
 
@@ -136,7 +136,11 @@ adminRouter.get('/schools/:schoolId', asyncHandler(adminSchoolController.getScho
 adminRouter.post('/schools', asyncHandler(adminSchoolController.createSchool));
 adminRouter.put('/schools/:schoolId', asyncHandler(adminSchoolController.updateSchool));
 adminRouter.put('/schools/:schoolId/status', asyncHandler(adminSchoolController.toggleSchoolStatus));
-adminRouter.post('/schools/import', asyncHandler(adminSchoolController.importSchoolsFromCSV));
+adminRouter.post('/schools/import', 
+    requireRole(['super_admin', 'admin']),
+    uploadCSV,
+    asyncHandler(adminSchoolController.importSchoolsFromCSV)
+);
 
 // Transaction management routes
 adminRouter.get('/transactions', asyncHandler(adminTransactionController.getAllTransactions));
