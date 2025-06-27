@@ -212,6 +212,11 @@ adminRouter.put('/exchange-rate',
 //apply for student
 adminRouter.post('/initiate',authenticateAdmin,adminApplicationController.initiateAdminApplication)
 
+// Apply for agent student 
+adminRouter.post('/initiate-agent', authenticateAdmin, adminApplicationController.initiateAgentApplication)
+
+
+
 
 adminRouter.get('/config', authenticateAdmin, async (req, res) => {
     try {

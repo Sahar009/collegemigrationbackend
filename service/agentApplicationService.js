@@ -12,6 +12,7 @@ import { Transaction } from '../schema/transactionSchema.js';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
 import WalletTransaction from '../schema/WalletTransactionSchema.js'
+import { getConfig } from './appConfigService.js';
 
 // Add these helper functions at the top
 const checkRequiredDocuments = async (memberId, programCategory) => {
@@ -111,7 +112,10 @@ export const createAgentApplicationService = async (agentId, data, callback) => 
             ));
         }
 
+                const requireDocValidation = await getConfig('require_document_validation');
+        
         // Check required documents
+        if (requireDocValidation.data.require_document_validation) {
         const { isComplete, missingDocs } = await checkRequiredDocuments(
             data.memberId, 
             programCategory
@@ -150,7 +154,7 @@ export const createAgentApplicationService = async (agentId, data, callback) => 
                 BAD_REQUEST
             ));
         }
-
+    }
         // Create applicatio-n with proper ENUM values
         const application = await AgentApplication.create({
             agentId,

@@ -394,3 +394,50 @@ export const initiateAdminApplication = async (req, res) => {
         );
     }
 };
+
+
+export const initiateAgentApplication = async (req, res) => {
+    try {
+        const { memberId, programId, programCategory, intake, paymentStatus, applicationStatus,agentId } = req.body;
+
+        // Validate required fields
+        if (!memberId || !programId || !programCategory || !intake || !paymentStatus || !applicationStatus || !agentId) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler(
+                    "Member ID,Agent ID,  Program ID, category, intake, payment status and application status are required", 
+                    false, 
+                    BAD_REQUEST
+                )
+            );
+        }
+
+        // Validate program category
+        if (!['undergraduate', 'postgraduate', 'phd'].includes(programCategory.toLowerCase())) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler(
+                    "Invalid program category. Must be undergraduate, postgraduate, or phd", 
+                    false, 
+                    BAD_REQUEST
+                )
+            );
+        }
+
+        await adminApplicationService.initiateAgentApplicationService(
+            memberId, 
+            { programId, programCategory, intake, paymentStatus, applicationStatus }, 
+            (response) => {
+                res.status(response.statusCode).json(response);
+            }
+        );
+
+    } catch (error) {
+        console.error('Initiate application controller error:', error);
+        res.status(BAD_REQUEST).json(
+            messageHandler(
+                error.message || "Error initiating application", 
+                false, 
+                BAD_REQUEST
+            )
+        );
+    }
+}

@@ -1414,5 +1414,125 @@ export const initiateAdminApplicationService = async (memberId, programData, cal
 };
 
 
+export const initiateAgentApplicationService = async (memberId, programData, agentId, callback) => {
+    try {
+        // Check if student exists and belongs to agent
+        const student = await AgentStudent.findOne({
+            where: { 
+                memberId: memberId,
+                agentId
+            }
+        });
+
+        if (!student) {
+            return callback(messageHandler(
+                "Student not found or doesn't belong to agent",
+                false,
+                NOT_FOUND
+            ));
+        }
+
+        // Check if program exists and get full program details
+        const program = await Program.findOne({
+            where: { programId: programData.programId },
+            attributes: ['programId', 'programName', 'category', 'degree']
+        });
+
+        if (!program) {
+            return callback(messageHandler(
+                "Program not found",
+                false,
+                NOT_FOUND
+            ));
+        }
+
+        // Use the category field directly since it's already an ENUM('undergraduate', 'postgraduate', 'phd')
+        const programCategory = program.category;
+
+        if (!programCategory) {
+            return callback(messageHandler(
+                "Unable to determine program category",
+                false,
+                BAD_REQUEST
+            ));
+        }
+
+                const requireDocValidation = await getConfig('require_document_validation');
+        
+        // Check required documents
+        if (requireDocValidation.data.require_document_validation) {
+        const { isComplete, missingDocs } = await checkRequiredDocuments(
+            memberId, 
+            programCategory
+        );
+
+        if (!isComplete) {
+            // Create user-friendly document descriptions
+            const documentDescriptions = {
+                'internationalPassport': 'International Passport (must be valid for at least 6 months)',
+                'olevelResult': 'O-Level Result (WAEC, NECO, or equivalent)',
+                'olevelPin': 'O-Level Result Checker PIN/Scratch Card',
+                'academicReferenceLetter': 'Academic Reference Letter from previous institution',
+                'resume': 'Updated CV/Resume (including work experience and education)',
+                'languageTestCert': 'English Language Proficiency Certificate (IELTS, TOEFL, or equivalent)',
+                'universityDegreeCertificate': 'Bachelor\'s Degree Certificate or Statement of Result',
+                'universityTranscript': 'Official Academic Transcript',
+                'sop': 'Statement of Purpose',
+                'researchDocs': 'Research Proposal/Writing Sample'
+            };
+
+            const formattedDocs = missingDocs.map(doc => documentDescriptions[doc] || doc);
+            console.log('error', formattedDocs)
+            return callback(messageHandler(
+                {
+                    message: "Required Documents Missing",
+                    details: {
+                        title: "Please upload the following documents for your student to proceed:",
+                        missingDocuments: formattedDocs,
+                        note: "All documents should be clear, legible, and in PDF or JPG format. Maximum file size: 5MB per document.",
+                        totalMissing: missingDocs.length,
+                        helpText: "Need help? Contact our support team for guidance on document requirements.",
+                        programCategory: programCategory // For debugging
+                    }
+                },
+                false,
+                BAD_REQUEST
+            ));
+        }
+    }
+        // Create applicatio-n with proper ENUM values
+        const application = await AgentApplication.create({
+            agentId,
+            memberId: memberId,
+            programId: programData.programId,
+            programCategory: programCategory,
+            applicationStage: 'documents',
+            paymentStatus: programData.paymentStatus,
+            applicationStatus: programData.applicationStatus,
+            intake: programData.intake,
+            applicationDate: new Date()
+        });
+
+        return callback(messageHandler(
+            "Application created successfully",
+            true,
+            SUCCESS,
+            application
+        ));
+
+    } catch (error) {
+        console.error('Create application error:', error);
+        return callback(messageHandler(
+            error.message || "Error creating application",
+            false,
+            BAD_REQUEST
+        ));
+    }
+};
+
+
+
+
+
 
 
