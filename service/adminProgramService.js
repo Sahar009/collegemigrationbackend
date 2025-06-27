@@ -266,8 +266,22 @@ export const importProgramsFromCSVService = async (filePath) => {
           rowCount++;
           
           // Validate required fields
-          if (!row.programName || !row.schoolId || !row.degree) {
-            errors.push(`Row ${rowCount}: Missing required fields (programName, schoolId, degree)`);
+          if (!row.programName || !row.schoolId || !row.degree || !row.category) {
+            errors.push(`Row ${rowCount}: Missing required fields (programName, schoolId, degree, category)`);
+            return;
+          }
+
+          // Validate category
+          const validCategories = [
+            'undergraduate', 'postgraduate', 'phd', '1-Year Certificate',
+            '2-Year Diploma', '3-Year Advanced Diploma', '3-Year Bachelor',
+            'Top-up Degree', '4-Year Bachelor', 'Integrated Masters',
+            'Postgraduate Certificate', 'Postgraduate Diploma',
+            'Masters Degree', 'Doctoral/PhD', 'Non-Credential'
+          ];
+          
+          if (!validCategories.includes(row.category)) {
+            errors.push(`Row ${rowCount}: Invalid category. Must be one of: ${validCategories.join(', ')}`);
             return;
           }
           
@@ -285,14 +299,16 @@ export const importProgramsFromCSVService = async (filePath) => {
             schoolId: row.schoolId,
             schoolName: school.schoolName,
             degree: row.degree,
-            degreeLevel: row.degreeLevel || null,
+            degreeLevel: row.degreeLevel || row.degree, // Fallback to degree if degreeLevel not provided
+            category: row.category,
             language: row.language || 'English',
-            semesters: row.semesters || null,
-            fee: row.fee || 0,
-            applicationFee: row.applicationFee || 0,
-            location: row.location || null,
-            about: row.about || null,
+            semesters: row.semesters || '2', // Default to 2 semesters if not provided
+            fee: parseFloat(row.fee) || 0,
+            feeCurrency: row.feeCurrency || 'USD',
+            location: row.location || school.location || 'Not specified',
+            about: row.about || `${row.programName} program at ${school.schoolName}`,
             features: row.features || null,
+            applicationFee: parseFloat(row.applicationFee) || 0,
             applicationDeadline: row.applicationDeadline || null,
             isActive: row.isActive === 'true' || row.isActive === '1' || true
           };
@@ -315,12 +331,17 @@ export const importProgramsFromCSVService = async (filePath) => {
     }
     
     // Bulk create programs
-    const createdPrograms = await Program.bulkCreate(programs, { transaction: t });
+    const createdPrograms = await Program.bulkCreate(programs, { 
+      transaction: t,
+      returning: true 
+    });
     
     await t.commit();
     
     // Delete the temporary file
-    fs.unlinkSync(filePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
     
     return messageHandler(
       'Programs imported successfully',
