@@ -411,20 +411,21 @@ export const initiateAgentApplication = async (req, res) => {
             );
         }
 
-        // Validate program category
-        if (!['undergraduate', 'postgraduate', 'phd'].includes(programCategory.toLowerCase())) {
-            return res.status(BAD_REQUEST).json(
-                messageHandler(
-                    "Invalid program category. Must be undergraduate, postgraduate, or phd", 
-                    false, 
-                    BAD_REQUEST
-                )
-            );
-        }
+        // // Validate program category
+        // if (!['undergraduate', 'postgraduate', 'phd'].includes(programCategory.toLowerCase())) {
+        //     return res.status(BAD_REQUEST).json(
+        //         messageHandler(
+        //             "Invalid program category. Must be undergraduate, postgraduate, or phd", 
+        //             false, 
+        //             BAD_REQUEST
+        //         )
+        //     );
+        // }
 
         await adminApplicationService.initiateAgentApplicationService(
             memberId, 
-            { programId, programCategory, intake, paymentStatus, applicationStatus }, 
+            { programId, programCategory, intake, paymentStatus, applicationStatus },
+            agentId,
             (response) => {
                 res.status(response.statusCode).json(response);
             }
