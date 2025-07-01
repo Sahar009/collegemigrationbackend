@@ -30,10 +30,33 @@ export const getReferrals = async (req, res) => {
     try {
         const { status = 'all', page = 1, limit = 10 } = req.query;
         const referrerId = req.user.id;
-        
+        console.log(req.user)
         // Convert to proper case (first letter uppercase)
         const referralType = req.user.role === 'agent' ? 'Agent' : 'Member';
+console.log(referralType,referrerId);
+        const result = await getReferralsService({
+            referrerId,
+            referralType,
+            status,
+            page: parseInt(page),
+            limit: parseInt(limit)
+        });
 
+        return res.status(result.statusCode).json(result);
+    } catch (error) {
+        console.error('Get referrals error:', error);
+        return res.status(500).json(messageHandler(error.message, false, 500));
+    }
+};
+
+export const getReferralsAgent = async (req, res) => {
+    try {
+        const { status = 'all', page = 1, limit = 10 } = req.query;
+        const referrerId = req.user.id;
+        console.log(req.user)
+        // Convert to proper case (first letter uppercase)
+        const referralType = 'Agent';
+console.log(referralType,referrerId);
         const result = await getReferralsService({
             referrerId,
             referralType,
