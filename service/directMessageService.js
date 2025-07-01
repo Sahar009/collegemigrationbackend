@@ -7,15 +7,49 @@ import { Member } from '../schema/memberSchema.js';
 import Admin from '../schema/AdminSchema.js';
 import axios from 'axios';
 import { MESSAGES } from '../config/constants.js';
+import { sendEmail } from '../utils/sendEmail.js';
+import { config } from 'dotenv';
 
+// Load environment variables
+config();
+
+// Helper function to get user details by type and ID
+const getUserDetails = async (userId, userType) => {
+    try {
+        let user;
+        switch (userType) {
+            case 'admin':
+                user = await Admin.findByPk(userId);
+                break;
+            case 'agent':
+                user = await Agent.findByPk(userId);
+                break;
+            case 'member':
+            case 'student':
+                user = await Member.findByPk(userId);
+                break;
+            default:
+                return null;
+        }
+        return user ? {
+            name: user.name || user.fullName || 'User',
+            email: user.email
+        } : null;
+    } catch (error) {
+        console.error('Error fetching user details:', error);
+        return null;
+    }
+};
 
 export const createDirectMessage = async (messageData, files) => {
+    const transaction = await sequelize.transaction();
+    
     try {
         console.log('Creating message with data:', messageData);
-        console.log('Files:', files);
         
         // Validate required fields
         if (!messageData.senderId || !messageData.receiverId || !messageData.message) {
+            await transaction.rollback();
             return messageHandler("Missing required fields", false, 400);
         }
 
@@ -27,8 +61,39 @@ export const createDirectMessage = async (messageData, files) => {
         const message = await DirectMessage.create({
             ...messageData,
             attachments
-        });
+        }, { transaction });
 
+        // Get sender and receiver details for email notification
+        const [sender, receiver] = await Promise.all([
+            getUserDetails(messageData.senderId, messageData.senderType),
+            getUserDetails(messageData.receiverId, messageData.receiverType)
+        ]);
+
+        // If we have both sender and receiver with email, send notification
+        if (sender && receiver && receiver.email) {
+            try {
+                const loginUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`;
+                
+                await sendEmail({
+                    to: receiver.email,
+                    subject: `New message from ${sender.name}`,
+                    template: 'newMessage',
+                    context: {
+                        recipientName: receiver.name,
+                        senderName: sender.name,
+                        message: messageData.message,
+                        loginUrl
+                    }
+                });
+                
+                console.log(`Notification email sent to ${receiver.email}`);
+            } catch (emailError) {
+                console.error('Failed to send notification email:', emailError);
+                // Don't fail the whole operation if email sending fails
+            }
+        }
+
+        await transaction.commit();
         return messageHandler('Message sent', true, 201, message);
     } catch (error) {
         console.error('Create message error:', error);
