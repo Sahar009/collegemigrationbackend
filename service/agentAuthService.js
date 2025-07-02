@@ -8,6 +8,7 @@ import { sendEmail } from '../utils/sendEmail.js';
 import { Op } from 'sequelize';
 import { generateReference } from '../utils/reference.js';
 import sequelize from '../database/db.js';
+import { AgentPersonalInfo } from '../schema/AgentPersonalInfoSchema.js';
 
 
 const baseUrl = process.env.FRONTEND_URL || "https://collegemigrationmain.vercel.app/";
@@ -428,8 +429,34 @@ export const deleteAccount = async (agentId, password) => {
     }
 };
 
+export const updateAgentPhoto = async (agentId, photoPath) => {
+    try {
+        const agentPersonalInfo = await AgentPersonalInfo.findOne({
+            where: { agentId }
+        });
+
+        if (!agentPersonalInfo) {
+            throw new Error('Agent personal information not found');
+        }
+
+        // Update only the photo field
+        await agentPersonalInfo.update({ photo: photoPath });
+
+        return {
+            success: true,
+            message: 'Profile photo updated successfully',
+            data: {
+                photo: photoPath
+            }
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
 export const updateProfile = async (agentId, profileData) => {
     try {
+        console.log(agentId, profileData)
         const agent = await Agent.findByPk(agentId);
         if (!agent) {
             throw new Error('Agent not found');

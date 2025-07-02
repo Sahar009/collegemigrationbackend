@@ -131,10 +131,33 @@ export const deleteAccount = async (req, res) => {
     }
 };
 
+export const updateAgentPhoto = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(BAD_REQUEST).json({
+                success: false,
+                message: 'No file uploaded'
+            });
+        }
+
+        // The file path will be available in req.file.path
+        const photoPath = req.file.path;
+        const result = await agentAuthService.updateAgentPhoto(req.user.agentId || req.user.id, photoPath);
+        
+        return res.status(SUCCESS).json(result);
+    } catch (error) {
+        return res.status(BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 export const updateProfile = async (req, res) => {
     try {
         const profileData = req.body;
-        const result = await agentAuthService.updateProfile(req.user.id, profileData);
+        console.log(profileData)
+        const result = await agentAuthService.updateProfile(req.user.agentId || req.user.id, profileData);
         return res.status(SUCCESS).json(result);
     } catch (error) {
         return res.status(BAD_REQUEST).json({

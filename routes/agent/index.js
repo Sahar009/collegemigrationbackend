@@ -9,7 +9,7 @@ import {
     validateEmail
 } from '../../middleware/validationMiddleware.js';
 import { authenticateAgent } from '../../middleware/authMiddleware.js';
-import { handleUploadError, uploadFields } from '../../middlewares/uploadMiddleware.js';
+import { handleUploadError, uploadFields, uploadPhoto } from '../../middlewares/uploadMiddleware.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import studentRouter from './student.js';
 import applicationRouter from './application.js';
@@ -54,7 +54,17 @@ agentRouter.post('/change-password', authenticateAgent, asyncHandler(agentAuthCo
 
 agentRouter.delete('/delete-account', authenticateAgent, asyncHandler(agentAuthController.deleteAccount));
 
-agentRouter.put('/profile', authenticateAgent, asyncHandler(agentAuthController.updateProfile));
+agentRouter.put('/profile', authenticateAgent, uploadFields,
+    handleUploadError, asyncHandler(agentAuthController.updateProfile));
+
+// Update agent photo
+agentRouter.post('/profile/photo', 
+    authenticateAgent, 
+    uploadPhoto,
+    handleUploadError, 
+    asyncHandler(agentAuthController.updateAgentPhoto)
+);
+
 // Protected routes
 agentRouter.use(authenticateAgent);
 

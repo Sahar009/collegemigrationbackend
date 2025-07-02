@@ -79,14 +79,12 @@ export const getAllProgramsService = async (query, callback) => {
         // Try to get data from cache
         const cachedData = await getCache(cacheKey);
         if (cachedData) {
-            console.log(`Cache hit for key: ${cacheKey}`);
             return callback(
                 messageHandler("Programs retrieved from cache", true, SUCCESS, cachedData)
             );
         }
-        
-        console.log(`Cache miss for key: ${cacheKey}`);
 
+        // Destructure query parameters with defaults
         const { 
             search, 
             degreeLevel, 
@@ -98,69 +96,85 @@ export const getAllProgramsService = async (query, callback) => {
             countries,
             isActive
         } = query;
+        
+        // Validate pagination parameters
+        const pageSize = Math.min(parseInt(limit, 10) || 10, 100); // Max 100 items per page
+        const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+        const offset = (pageNumber - 1) * pageSize;
 
-        // Build where clause
+        // Build where clause with optimized conditions
         const whereClause = {};
         
-        // Add search functionality
-        if (search) {
+        // Add search functionality with optimized conditions
+        if (search && search.trim()) {
+            const searchTerm = `%${search.trim()}%`;
             whereClause[Op.or] = [
-                { programName: { [Op.like]: `%${search}%` } },
-                { degree: { [Op.like]: `%${search}%` } },
-                { schoolName: { [Op.like]: `%${search}%` } },
-                { location: { [Op.like]: `%${search}%` } }
+                { programName: { [Op.like]: searchTerm } },
+                { degree: { [Op.like]: searchTerm } },
+                { schoolName: { [Op.like]: searchTerm } },
+                { location: { [Op.like]: searchTerm } }
             ];
         }
 
-        // Add filters
+        // Add filters with type checking
         if (degreeLevel) whereClause.degreeLevel = degreeLevel;
         if (language) whereClause.language = language;
         if (location) whereClause.location = location;
         if (category) whereClause.category = category;
         if (countries) whereClause.location = { [Op.like]: `%${countries}%` };
-
-        // Add isActive filter if specified
         if (isActive !== undefined) {
             whereClause.isActive = isActive === 'true' || isActive === true;
         }
 
-        // Calculate offset for pagination
-        const offset = (page - 1) * limit;
-
-        // Get programs with pagination and include school's application deadline
+        // Get total count and paginated results in a single query
         const { count, rows: programs } = await Program.findAndCountAll({
             where: whereClause,
-            limit: parseInt(limit),
-            offset: parseInt(offset),
+            limit: pageSize,
+            offset,
             include: [{
                 model: School,
-                // as: 'school',
-                attributes: ['applicationDeadline']
-            }]
+                attributes: ['applicationDeadline'],
+                required: false // Use LEFT JOIN instead of INNER JOIN
+            }],
+            order: [
+                ['isActive', 'DESC'],  // Active programs first
+                ['programName', 'ASC'] // Then sort by name
+            ],
+            benchmark: true, // Log query execution time
+            logging: (sql, timingMs) => {
+                if (timingMs > 200) { // Log slow queries
+                    console.warn(`Slow query (${timingMs}ms): ${sql}`);
+                }
+            },
+            // Explicitly select only the fields we need
+            attributes: [
+                'programId', 'programName', 'degree', 'degreeLevel', 'category',
+                'schoolId', 'schoolName', 'language', 'semesters', 'fee',
+                'feeCurrency', 'location', 'schoolLogo', 'programImage',
+                'applicationFee', 'isActive'
+            ]
         });
 
-        // Map programs to include applicationDeadline from school
-        const programsWithDeadline = programs.map(program => ({
-            ...program.toJSON(),
-            applicationDeadline: program.school?.applicationDeadline || null
-        }));
-
-        // Calculate total pages
-        const totalPages = Math.ceil(count / limit);
-
+        // Prepare response data with optimized structure
         const responseData = {
-            programs: programsWithDeadline,
+            programs: programs.map(program => ({
+                ...program.get({ plain: true }), // Convert to plain object
+                applicationDeadline: program.school?.applicationDeadline || null
+            })),
             pagination: {
                 total: count,
-                totalPages,
-                currentPage: parseInt(page),
-                limit: parseInt(limit)
+                totalPages: Math.ceil(count / pageSize),
+                currentPage: pageNumber,
+                limit: pageSize
             }
         };
 
-        // Cache the response (use environment variable for expiration)
-        const expiration = parseInt(process.env.REDIS_CACHE_EXPIRATION || 86400);
-        await setCache(cacheKey, responseData, expiration);
+        // Cache the response with appropriate TTL
+        const cacheTTL = process.env.NODE_ENV === 'production' ? 
+            parseInt(process.env.REDIS_CACHE_EXPIRATION || 3600, 10) : // 1 hour in production
+            60; // 1 minute in development
+            
+        await setCache(cacheKey, responseData, cacheTTL);
 
         return callback(
             messageHandler(

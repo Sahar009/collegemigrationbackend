@@ -43,6 +43,9 @@ export const uploadFields = upload.fields([
     { name: 'idScanBack', maxCount: 1 }
 ]);
 
+// For single photo upload
+export const uploadPhoto = upload.single('photo');
+
 // Add single document upload
 export const uploadSingleDocument = upload.single('file');
 

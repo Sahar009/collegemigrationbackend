@@ -102,7 +102,13 @@ export const Program = sequelize.define('Program', {
     }
 }, {
     timestamps: false,
-    tableName: 'programs'
+    tableName: 'programs',
+    // Optimize for read performance
+    defaultScope: {
+        attributes: {
+            exclude: ['about', 'features'] // Exclude large text fields by default
+        }
+    }
 });
 
 // Define association
