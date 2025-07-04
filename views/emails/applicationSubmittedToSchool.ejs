@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>College Migration - Application Submitted to School</title>
+</head>
+<body style="
+    margin: 0;
+    padding: 0;
+    background: #408e49;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 10px;
+">
+    <div style="
+        margin: 20px auto;
+        padding: 40px 20px;
+        max-width: 600px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 24px;
+    ">
+        <!-- Logo -->
+        <div style="width: 100%; margin: 0 auto 40px">
+            <img
+            src="https://res.cloudinary.com/ds5nnf5hi/image/upload/v1740830241/college_ilqfhe.png"
+            style="width: 128px; margin: 0 auto 40px"
+                alt="College Migration Logo"
+            />
+        </div>
+
+        <!-- Main Image -->
+        <img
+            src="https://res.cloudinary.com/ds5nnf5hi/image/upload/v1742678947/undraw_content_0p18_qtyb7z.png"
+            style="width: 261px; margin: 0 auto 40px"
+            alt="Application Submitted Illustration"
+        />
+
+        <!-- Content -->
+        <h2 style="color: #1A2825; font-size: 24px; margin: 0 0 24px">
+            Application Submitted to <%= schoolName %>
+        </h2>
+
+        <div style="text-align: left; margin-bottom: 24px">
+            <p style="color: #000000; font-size: 14px; margin: 0 0 16px">
+                Dear <%= name %>,
+            </p>
+
+            <p style="color: #000000; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
+                We're excited to inform you that your application has been successfully submitted to <strong><%= schoolName %></strong> for the <strong><%= programName %></strong> program.
+            </p>
+
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 24px 0;">
+                <h3 style="color: #1A2825; font-size: 16px; margin: 0 0 12px;">Application Details</h3>
+                <p style="color: #000000; font-size: 14px; margin: 0 0 8px;"><strong>Application ID:</strong> <%= applicationId %></p>
+                <p style="color: #000000; font-size: 14px; margin: 0 0 8px;"><strong>Program:</strong> <%= programName %></p>
+                <p style="color: #000000; font-size: 14px; margin: 0 0 8px;"><strong>School:</strong> <%= schoolName %></p>
+                <p style="color: #000000; font-size: 14px; margin: 0 0 0;"><strong>Submission Date:</strong> <%= submissionDate %></p>
+            </div>
+
+            <p style="color: #000000; font-size: 14px; margin: 24px 0 16px; line-height: 1.5;">
+                The admissions team at <strong><%= schoolName %></strong> will now review your application. 
+                You'll be notified as soon as there's an update regarding your application status.
+            </p>
+
+            <p style="color: #000000; font-size: 14px; margin: 0 0 24px; line-height: 1.5;">
+                If you have any questions or need further assistance, please don't hesitate to contact our support team.
+            </p>
+
+            <!-- Login Button -->
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="<%= loginUrl %>" 
+                   style="
+                       background-color: #408e49;
+                       color: white;
+                       padding: 12px 32px;
+                       text-decoration: none;
+                       border-radius: 8px;
+                       font-weight: bold;
+                       display: inline-block;
+                   ">
+                    View Application Status
+                </a>
+            </div>
+
+            <p style="color: #000000; font-size: 14px; margin: 24px 0 0;">
+                Best regards,<br>
+                <strong>The College Migration Team</strong>
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="margin: 40px -20px 0; padding: 24px 20px; background: #f8fafc; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 12px; margin: 0 0 8px;">
+                © <%= new Date().getFullYear() %> College Migration. All rights reserved.
+            </p>
+            <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                This is an automated message. Please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

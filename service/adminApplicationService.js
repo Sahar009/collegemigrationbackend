@@ -235,7 +235,7 @@ export const getApplicationDetailsService = async (applicationId, applicationTyp
                     {
                         model: Program,
                         as: 'program',
-                        attributes: ['programId', 'programName', 'degree', 'degreeLevel', 'category', 'schoolName', 'language', 'semesters', 'fee', 'location', 'about', 'features', 'schoolLogo', 'programImage', 'applicationFee', 'applicationDeadline']
+                        attributes: ['programId', 'programName', 'degree', 'degreeLevel', 'category', 'schoolName', 'language', 'semesters', 'fee', 'location', 'about', 'features', 'schoolLogo', 'programImage', 'applicationFee']
                     },
                     {
                         model: ApplicationDocument,
@@ -787,14 +787,98 @@ export const updateDocumentStatusService = async (documentId, documentType, stat
 };
 
 // Send application to school (placeholder for actual implementation)
+// Helper function to send application submission email
+const sendApplicationSubmissionEmail = async (application, user, program, schoolName, userType) => {
+    try {
+        const email = userType === 'member' ? user.email : user.contactEmail;
+        const name = userType === 'member' ? `${user.firstname} ${user.lastname}` : user.contactPerson;
+        
+        await sendEmail({
+            to: email,
+            subject: `Application Submitted to ${schoolName}`,
+            template: 'applicationSubmittedToSchool',
+            context: {
+                name,
+                schoolName,
+                programName: program ? program.programName : 'Selected Program',
+                applicationId: application.applicationId,
+                submissionDate: new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }),
+                loginUrl: `${process.env.FRONTEND_URL || 'https://your-frontend-url.com'}/login`
+            }
+        });
+        console.log(`Application submission email sent to ${email}`);
+    } catch (error) {
+        console.error('Error sending application submission email:', error);
+        // Don't throw the error - we don't want to fail the main operation if email fails
+    }
+};
+
 export const sendApplicationToSchoolService = async (applicationId, applicationType) => {
     try {
         let application;
+        let user;
+        let program;
+        let schoolName = 'the selected school'; // Default fallback
         
         if (applicationType === 'direct') {
-            application = await Application.findByPk(applicationId);
+            // For direct applications
+            application = await Application.findByPk(applicationId, {
+                include: [
+                    {
+                        model: Member,
+                        as: 'applicationMember',
+                        attributes: ['memberId', 'firstname', 'lastname', 'email']
+                    },
+                    {
+                        model: Program,
+                        as: 'program',
+                        attributes: ['programId', 'programName', 'schoolName'],
+                        required: false
+                    }
+                ]
+            });
+            
+            if (application) {
+                user = application.applicationMember;
+                program = application.program;
+                if (program) {
+                    schoolName = program.institutionName || schoolName;
+                }
+            }
         } else if (applicationType === 'agent') {
-            application = await AgentApplication.findByPk(applicationId);
+            // For agent applications
+            application = await AgentApplication.findByPk(applicationId, {
+                include: [
+                    {
+                        model: AgentStudent,
+                        as: 'student',
+                        attributes: ['memberId', 'firstname', 'lastname', 'email']
+                    },
+                    {
+                        model: Program,
+                        as: 'program',
+                        attributes: ['programId', 'programName', 'schoolName'],
+                        required: false
+                    },
+                    {
+                        model: Agent,
+                        as: 'agent',
+                        attributes: ['agentId', 'contactPerson', 'email']
+                    }
+                ]
+            });
+            
+            if (application) {
+                user = applicationType === 'agent' ? application.agent : application.student;
+                program = application.program;
+                if (program) {
+                    schoolName = program.institutionName || schoolName;
+                }
+            }
         } else {
             return messageHandler('Invalid application type', false, 400);
         }
@@ -803,14 +887,27 @@ export const sendApplicationToSchoolService = async (applicationId, applicationT
             return messageHandler('Application not found', false, 404);
         }
         
-        // Here you would implement the actual logic to send the application to the school
-        // This could involve API calls to the school's system, generating PDFs, sending emails, etc.
+        if (!user) {
+            console.error('User not found for application:', applicationId);
+            return messageHandler('User not found for this application', false, 404);
+        }
         
-        // For now, we'll just update the status
+    
         await application.update({
             applicationStatus: 'submitted_to_school',
             applicationStatusDate: new Date()
         });
+        
+        // Send email notification
+        if (user) {
+            await sendApplicationSubmissionEmail(
+                application, 
+                user, 
+                program, 
+                schoolName,
+                applicationType === 'direct' ? 'member' : 'agent'
+            );
+        }
         
         return messageHandler(
             'Application sent to school successfully',
