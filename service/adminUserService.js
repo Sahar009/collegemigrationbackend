@@ -1,6 +1,8 @@
 import { Member } from '../schema/memberSchema.js';
 import { Agent } from '../schema/AgentSchema.js';
+import { ApplicationDocument } from '../schema/applicationDocumentSchema.js';
 import { messageHandler } from '../utils/index.js';
+import { sendEmail } from '../utils/sendEmail.js';
 import bcrypt from 'bcrypt';
 import { Op } from 'sequelize';
 import AgentStudent from '../schema/AgentStudentSchema.js';
@@ -10,11 +12,9 @@ import AgentApplication from '../schema/AgentApplicationSchema.js';
 import Wallet from '../schema/WalletSchema.js';
 import Referral from '../schema/ReferralSchema.js';
 import { Program } from '../schema/programSchema.js';
-import { ApplicationDocument } from '../schema/applicationDocumentSchema.js';
 import AgentTransaction from '../schema/AgentTransactionSchema.js';
 import sequelize from '../database/db.js';
 import { Transaction } from '../schema/transactionSchema.js';
-import { sendEmail } from '../utils/sendEmail.js';
 
 const generateTempPassword = () => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -642,13 +642,59 @@ export const updateUserDocumentService = async (documentId, documentType, update
             reviewedAt: allowedUpdates.reviewedAt
         };
         
-        await document.update(updatePayload);
+        const updatedDocument = await document.update(updatePayload);
+        
+        // Send email notification if status was changed
+        if (newStatus !== currentStatus) {
+            try {
+                // Get user details based on document type
+                let user;
+                if (documentType.toLowerCase() === 'application') {
+                    user = await Member.findByPk(document.userId, {
+                        attributes: ['id', 'email', 'firstName', 'lastName']
+                    });
+                } else if (documentType.toLowerCase() === 'agent-student') {
+                    user = await Agent.findByPk(document.agentId, {
+                        attributes: ['id', 'email', 'firstName', 'lastName']
+                    });
+                }
+
+                if (user && user.email) {
+                    // Prepare email context
+                    const emailContext = {
+                        userName: `${user.firstName} ${user.lastName}`,
+                        documentType: documentType === 'application' ? 'Application Document' : 'Student Document',
+                        documentName: document.documentName || 'your document',
+                        status: newStatus,
+                        adminComment: updateData.adminComment,
+                        date: new Date().toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }),
+                        loginUrl: `${process.env.FRONTEND_URL || 'https://your-frontend-url.com'}/login`
+                    };
+
+                    // Send email
+                    await sendEmail({
+                        to: user.email,
+                        subject: `Document Status Update: ${emailContext.documentName}`,
+                        template: 'documentStatusUpdate',
+                        context: emailContext
+                    });
+                }
+            } catch (emailError) {
+                console.error('Failed to send status update email:', emailError);
+            }
+        }
         
         return messageHandler(
             'Document updated successfully',
             true,
             200,
-            document
+            updatedDocument
         );
     } catch (error) {
         console.error('Update document error:', error);

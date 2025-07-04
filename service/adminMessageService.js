@@ -4,6 +4,7 @@ import Admin from '../schema/AdminSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 export const sendAdminMessage = async (messageData, files) => {
     try {
@@ -53,6 +54,91 @@ export const sendAdminMessage = async (messageData, files) => {
         }
 
         const message = await AdminMessage.create(messagePayload);
+
+        // Send email notification to the recipient
+        if (!isGroupMessage) {
+            try {
+                // Get sender and receiver details for email
+                const [sender, receiver] = await Promise.all([
+                    Admin.findByPk(messageData.senderId, {
+                        attributes: ['adminId', 'username', 'fullName', 'email']
+                    }),
+                    Admin.findByPk(messageData.receiverId, {
+                        attributes: ['adminId', 'username', 'fullName', 'email']
+                    })
+                ]);
+
+                if (receiver && receiver.email) {
+                    const emailContext = {
+                        recipientName: receiver.fullName || receiver.username,
+                        senderName: sender?.fullName || sender?.username || 'An administrator',
+                        message: messageData.message.length > 100 
+                            ? messageData.message.substring(0, 100) + '...' 
+                            : messageData.message,
+                        loginUrl: `${process.env.FRONTEND_URL || 'https://your-frontend-url.com'}/admin/messages`
+                    };
+
+                    await sendEmail({
+                        to: receiver.email,
+                        subject: `New Message from ${emailContext.senderName}`,
+                        template: 'newMessage',
+                        context: emailContext
+                    });
+                }
+            } catch (emailError) {
+                console.error('Failed to send message notification email:', emailError);
+                // Don't fail the message sending if email fails
+            }
+        } else {
+            // For group messages, notify all group members except the sender
+            try {
+                const group = await AdminGroup.findByPk(messageData.groupId, {
+                    include: [{
+                        model: Admin,
+                        as: 'members',
+                        attributes: ['adminId', 'username', 'fullName', 'email'],
+                        through: { attributes: [] } // Exclude junction table attributes
+                    }]
+                });
+
+                if (group && group.members && group.members.length > 0) {
+                    const sender = await Admin.findByPk(messageData.senderId, {
+                        attributes: ['adminId', 'username', 'fullName']
+                    });
+
+                    // Send to all members except the sender
+                    const recipients = group.members.filter(member => 
+                        member.adminId !== messageData.senderId && member.email
+                    );
+
+                    if (recipients.length > 0) {
+                        const emailPromises = recipients.map(recipient => {
+                            const emailContext = {
+                                recipientName: recipient.fullName || recipient.username,
+                                senderName: sender?.fullName || sender?.username || 'A team member',
+                                groupName: group.name,
+                                message: messageData.message.length > 100 
+                                    ? messageData.message.substring(0, 100) + '...' 
+                                    : messageData.message,
+                                loginUrl: `${process.env.FRONTEND_URL || 'https://your-frontend-url.com'}/admin/group-messages/${group.groupId}`
+                            };
+
+                            return sendEmail({
+                                to: recipient.email,
+                                subject: `New Message in ${group.name}`,
+                                template: 'newMessage',
+                                context: emailContext
+                            });
+                        });
+
+                        await Promise.all(emailPromises);
+                    }
+                }
+            } catch (groupEmailError) {
+                console.error('Failed to send group message notification emails:', groupEmailError);
+                // Don't fail the message sending if emails fail
+            }
+        }
 
         return messageHandler('Message sent', true, 201, message);
     } catch (error) {
