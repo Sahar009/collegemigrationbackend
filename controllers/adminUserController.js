@@ -52,7 +52,7 @@ export const getUserDetails = async (req, res) => {
 export const updateUserStatus = async (req, res) => {
     try {
         const { userId, userType } = req.params;
-        const { status } = req.body;
+        let { status } = req.body;
         
         if (!userId || !userType) {
             return res.status(BAD_REQUEST).json(
@@ -64,14 +64,29 @@ export const updateUserStatus = async (req, res) => {
             );
         }
         
-        if (!status || !['active', 'inactive'].includes(status)) {
-            return res.status(BAD_REQUEST).json(
-                messageHandler(
-                    "Valid status (active/inactive) is required",
-                    false,
-                    BAD_REQUEST
-                )
-            );
+        // Normalize status based on user type
+        if (userType === 'member') {
+            status = status.toUpperCase();
+            if (!['ACTIVE', 'SUSPENDED', 'PENDING'].includes(status)) {
+                return res.status(BAD_REQUEST).json(
+                    messageHandler(
+                        "Valid status for members must be one of: ACTIVE, SUSPENDED, PENDING",
+                        false,
+                        BAD_REQUEST
+                    )
+                );
+            }
+        } else { // agent
+            status = status.toLowerCase();
+            if (!['active', 'inactive', 'pending'].includes(status)) {
+                return res.status(BAD_REQUEST).json(
+                    messageHandler(
+                        "Valid status for agents must be one of: active, inactive, pending",
+                        false,
+                        BAD_REQUEST
+                    )
+                );
+            }
         }
         
         const result = await adminUserService.updateUserStatusService(userId, userType, status);

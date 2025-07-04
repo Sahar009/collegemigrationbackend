@@ -417,6 +417,7 @@ export const updateUserStatusService = async (userId, userType, status) => {
         let user;
         
         if (userType === 'member') {
+            // For members, status should already be uppercase (validated in controller)
             user = await Member.findByPk(userId);
             if (!user) {
                 return messageHandler('Member not found', false, 404);
@@ -424,6 +425,7 @@ export const updateUserStatusService = async (userId, userType, status) => {
             
             await user.update({ memberStatus: status });
         } else if (userType === 'agent') {
+            // For agents, status should already be lowercase (validated in controller)
             user = await Agent.findByPk(userId);
             if (!user) {
                 return messageHandler('Agent not found', false, 404);
@@ -434,8 +436,18 @@ export const updateUserStatusService = async (userId, userType, status) => {
             return messageHandler('Invalid user type', false, 400);
         }
         
+        // Determine the success message based on the status
+        let statusMessage = 'status updated';
+        if (userType === 'member') {
+            statusMessage = status === 'ACTIVE' ? 'activated' : 
+                          status === 'SUSPENDED' ? 'suspended' : 'set to pending';
+        } else {
+            statusMessage = status === 'active' ? 'activated' : 
+                          status === 'inactive' ? 'deactivated' : 'set to pending';
+        }
+        
         return messageHandler(
-            `User ${status === 'active' ? 'activated' : 'deactivated'} successfully`,
+            `User ${statusMessage} successfully`,
             true,
             200,
             user

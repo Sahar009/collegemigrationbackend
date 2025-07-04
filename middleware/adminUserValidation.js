@@ -58,7 +58,16 @@ export const validateUserDetails = [
 export const validateUpdateUserStatus = [
     param('userId').isInt().withMessage('User ID must be an integer'),
     param('userType').isIn(['member', 'agent']).withMessage('User type must be member or agent'),
-    body('status').isIn(['active', 'inactive']).withMessage('Status must be active or inactive'),
+    body('status')
+        .custom((value, { req }) => {
+            const userType = req.params.userType;
+            if (userType === 'member') {
+                return ['ACTIVE', 'SUSPENDED', 'PENDING'].includes(value.toUpperCase());
+            } else {
+                return ['active', 'inactive', 'pending'].includes(value.toLowerCase());
+            }
+        })
+        .withMessage('Invalid status for the specified user type'),
     validateRequest
 ];
 
