@@ -788,7 +788,7 @@ export const updateDocumentStatusService = async (documentId, documentType, stat
 
 // Send application to school (placeholder for actual implementation)
 // Helper function to send application submission email
-const sendApplicationSubmissionEmail = async (application, user, program, schoolName, userType) => {
+const sendApplicationSubmissionEmail = async (application, user, program, schoolName, userType, attachments) => {
     try {
         const email = userType === 'member' ? user.email : user.contactEmail;
         const name = userType === 'member' ? `${user.firstname} ${user.lastname}` : user.contactPerson;
@@ -808,7 +808,8 @@ const sendApplicationSubmissionEmail = async (application, user, program, school
                     day: 'numeric'
                 }),
                 loginUrl: `${process.env.FRONTEND_URL || 'https://your-frontend-url.com'}/login`
-            }
+            },
+            attachments
         });
         console.log(`Application submission email sent to ${email}`);
     } catch (error) {
@@ -831,12 +832,12 @@ export const sendApplicationToSchoolService = async (applicationId, applicationT
                     {
                         model: Member,
                         as: 'applicationMember',
-                        attributes: ['memberId', 'firstname', 'lastname', 'email']
+                        attributes: ['memberId', 'firstname', 'lastname', 'email', 'phone', 'gender', 'dob', 'nationality', 'homeAddress', 'homeCity', 'homeState', 'homeCountry', 'homeZipCode', 'idType', 'idNumber', 'schengenVisaHolder', 'memberStatus', 'regDate']
                     },
                     {
                         model: Program,
                         as: 'program',
-                        attributes: ['programId', 'programName', 'schoolName'],
+                        attributes: ['programId', 'programName', 'degree', 'degreeLevel', 'category', 'schoolName', 'language', 'semesters', 'fee', 'feeCurrency', 'location', 'applicationFee', 'about'],
                         required: false
                     }
                 ]
@@ -846,7 +847,7 @@ export const sendApplicationToSchoolService = async (applicationId, applicationT
                 user = application.applicationMember;
                 program = application.program;
                 if (program) {
-                    schoolName = program.institutionName || schoolName;
+                    schoolName = program.schoolName || schoolName;
                 }
             }
         } else if (applicationType === 'agent') {
@@ -856,18 +857,18 @@ export const sendApplicationToSchoolService = async (applicationId, applicationT
                     {
                         model: AgentStudent,
                         as: 'student',
-                        attributes: ['memberId', 'firstname', 'lastname', 'email']
+                        attributes: ['memberId', 'firstname', 'lastname', 'email', 'phone', 'nationality', 'memberStatus']
                     },
                     {
                         model: Program,
                         as: 'program',
-                        attributes: ['programId', 'programName', 'schoolName'],
+                        attributes: ['programId', 'programName', 'degree', 'degreeLevel', 'category', 'schoolName', 'language', 'semesters', 'fee', 'feeCurrency', 'location', 'applicationFee', 'about'],
                         required: false
                     },
                     {
                         model: Agent,
                         as: 'agent',
-                        attributes: ['agentId', 'contactPerson', 'email']
+                        attributes: ['agentId', 'companyName', 'contactPerson', 'email', 'phone']
                     }
                 ]
             });
@@ -876,7 +877,7 @@ export const sendApplicationToSchoolService = async (applicationId, applicationT
                 user = applicationType === 'agent' ? application.agent : application.student;
                 program = application.program;
                 if (program) {
-                    schoolName = program.institutionName || schoolName;
+                    schoolName = program.schoolName || schoolName;
                 }
             }
         } else {
@@ -892,28 +893,241 @@ export const sendApplicationToSchoolService = async (applicationId, applicationT
             return messageHandler('User not found for this application', false, 404);
         }
         
-    
+        // Get documents for this application
+        let documents = [];
+        if (applicationType === 'direct') {
+            documents = await ApplicationDocument.findAll({
+                where: { memberId: application.memberId },
+                attributes: ['documentId', 'documentType', 'documentPath', 'status', 'uploadDate', 'adminComment']
+            });
+        } else {
+            documents = await AgentStudentDocument.findAll({
+                where: { 
+                    memberId: application.memberId,
+                    agentId: application.agentId 
+                },
+                attributes: ['documentId', 'documentType', 'documentPath', 'status', 'uploadDate', 'adminComment']
+            });
+        }
+        
+        // Create comprehensive application data for export
+        const applicationData = {
+            // Application Information
+            'Application ID': application.applicationId,
+            'Application Type': applicationType === 'agent' ? 'Agent' : 'Direct',
+            'Application Date': new Date(application.applicationDate).toLocaleString(),
+            'Application Status': application.applicationStatus,
+            'Payment Status': application.paymentStatus,
+            'Application Stage': application.applicationStage,
+            'Intake': application.intake || 'N/A',
+            'Application Status Date': application.applicationStatusDate ? new Date(application.applicationStatusDate).toLocaleString() : 'N/A',
+            
+            // Applicant Information
+            'Applicant ID': user.memberId || 'N/A',
+            'Applicant First Name': user.firstname || 'N/A',
+            'Applicant Last Name': user.lastname || 'N/A',
+            'Applicant Email': user.email || 'N/A',
+            'Applicant Phone': user.phone || 'N/A',
+            'Applicant Gender': user.gender || 'N/A',
+            'Applicant Date of Birth': user.dob ? new Date(user.dob).toLocaleDateString() : 'N/A',
+            'Applicant Nationality': user.nationality || 'N/A',
+            'Applicant ID Type': user.idType || 'N/A',
+            'Applicant ID Number': user.idNumber || 'N/A',
+            'Applicant Home Address': user.homeAddress || 'N/A',
+            'Applicant Home City': user.homeCity || 'N/A',
+            'Applicant Home State': user.homeState || 'N/A',
+            'Applicant Home Country': user.homeCountry || 'N/A',
+            'Applicant Home Zip Code': user.homeZipCode || 'N/A',
+            'Applicant Schengen Visa Holder': user.schengenVisaHolder ? 'Yes' : 'No',
+            'Applicant Status': user.memberStatus || 'N/A',
+            'Applicant Registration Date': user.regDate ? new Date(user.regDate).toLocaleDateString() : 'N/A',
+            
+            // Agent Information (for agent applications)
+            'Agent ID': applicationType === 'agent' ? (application.agent?.agentId || 'N/A') : 'N/A',
+            'Agent Company Name': applicationType === 'agent' ? (application.agent?.companyName || 'N/A') : 'N/A',
+            'Agent Contact Person': applicationType === 'agent' ? (application.agent?.contactPerson || 'N/A') : 'N/A',
+            'Agent Email': applicationType === 'agent' ? (application.agent?.email || 'N/A') : 'N/A',
+            'Agent Phone': applicationType === 'agent' ? (application.agent?.phone || 'N/A') : 'N/A',
+            
+            // Program Information
+            'Program ID': program?.programId || 'N/A',
+            'Program Name': program?.programName || 'N/A',
+            'Program Degree': program?.degree || 'N/A',
+            'Program Degree Level': program?.degreeLevel || 'N/A',
+            'Program Category': program?.category || 'N/A',
+            'School Name': program?.schoolName || 'N/A',
+            'Program Language': program?.language || 'N/A',
+            'Program Semesters': program?.semesters || 'N/A',
+            'Program Fee': program?.fee || 'N/A',
+            'Program Fee Currency': program?.feeCurrency || 'N/A',
+            'Program Location': program?.location || 'N/A',
+            'Program Application Fee': program?.applicationFee || 'N/A',
+            'Program About': program?.about || 'N/A',
+            
+            // Document Information
+            'Total Documents': documents.length,
+            'Document Types': documents.map(doc => doc.documentType).join('; ') || 'N/A',
+            'Approved Documents': documents.filter(doc => doc.status === 'approved').length,
+            'Pending Documents': documents.filter(doc => doc.status === 'pending').length,
+            'Rejected Documents': documents.filter(doc => doc.status === 'rejected').length,
+            'Document Status Summary': `Approved: ${documents.filter(doc => doc.status === 'approved').length}, Pending: ${documents.filter(doc => doc.status === 'pending').length}, Rejected: ${documents.filter(doc => doc.status === 'rejected').length}`
+        };
+        
+        // Add individual document details (first 5 documents)
+        documents.slice(0, 5).forEach((doc, index) => {
+            applicationData[`Document ${index + 1} Type`] = doc.documentType;
+            applicationData[`Document ${index + 1} Status`] = doc.status;
+            applicationData[`Document ${index + 1} Upload Date`] = new Date(doc.uploadDate).toLocaleDateString();
+            applicationData[`Document ${index + 1} Admin Comment`] = doc.adminComment || 'N/A';
+        });
+        
+        // Create CSV export
+        const { Parser } = await import('json2csv');
+        const fields = [
+            // Application fields
+            'Application ID', 'Application Type', 'Application Date', 'Application Status',
+            'Payment Status', 'Application Stage', 'Intake', 'Application Status Date',
+            
+            // Applicant fields
+            'Applicant ID', 'Applicant First Name', 'Applicant Last Name',
+            'Applicant Email', 'Applicant Phone', 'Applicant Gender', 'Applicant Date of Birth',
+            'Applicant Nationality', 'Applicant ID Type', 'Applicant ID Number',
+            'Applicant Home Address', 'Applicant Home City', 'Applicant Home State',
+            'Applicant Home Country', 'Applicant Home Zip Code', 'Applicant Schengen Visa Holder',
+            'Applicant Status', 'Applicant Registration Date',
+            
+            // Agent fields
+            'Agent ID', 'Agent Company Name', 'Agent Contact Person', 'Agent Email', 'Agent Phone',
+            
+            // Program fields
+            'Program ID', 'Program Name', 'Program Degree', 'Program Degree Level',
+            'Program Category', 'School Name', 'Program Language', 'Program Semesters',
+            'Program Fee', 'Program Fee Currency', 'Program Location', 'Program Application Fee',
+            'Program About',
+            
+            // Document fields
+            'Total Documents', 'Document Types', 'Approved Documents', 'Pending Documents',
+            'Rejected Documents', 'Document Status Summary',
+            'Document 1 Type', 'Document 1 Status', 'Document 1 Upload Date', 'Document 1 Admin Comment',
+            'Document 2 Type', 'Document 2 Status', 'Document 2 Upload Date', 'Document 2 Admin Comment',
+            'Document 3 Type', 'Document 3 Status', 'Document 3 Upload Date', 'Document 3 Admin Comment',
+            'Document 4 Type', 'Document 4 Status', 'Document 4 Upload Date', 'Document 4 Admin Comment',
+            'Document 5 Type', 'Document 5 Status', 'Document 5 Upload Date', 'Document 5 Admin Comment'
+        ];
+        
+        const parser = new Parser({ fields });
+        const csvData = parser.parse([applicationData]);
+        
+        // Create Excel export
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Application Details');
+        
+        // Add application info
+        worksheet.addRow(['Application Information']);
+        worksheet.addRow(['Application ID', application.applicationId]);
+        worksheet.addRow(['Application Type', applicationType === 'agent' ? 'Agent' : 'Direct']);
+        worksheet.addRow(['Application Date', new Date(application.applicationDate).toLocaleString()]);
+        worksheet.addRow(['Status', application.applicationStatus]);
+        worksheet.addRow(['Payment Status', application.paymentStatus]);
+        worksheet.addRow(['Intake', application.intake || 'N/A']);
+        worksheet.addRow(['']);
+        
+        // Add applicant info
+        worksheet.addRow(['Applicant Information']);
+        worksheet.addRow(['Name', `${user.firstname} ${user.lastname}`]);
+        worksheet.addRow(['Email', user.email]);
+        worksheet.addRow(['Phone', user.phone]);
+        worksheet.addRow(['Nationality', user.nationality]);
+        worksheet.addRow(['Gender', user.gender]);
+        worksheet.addRow(['Date of Birth', user.dob ? new Date(user.dob).toLocaleDateString() : 'N/A']);
+        worksheet.addRow(['ID Type', user.idType]);
+        worksheet.addRow(['ID Number', user.idNumber]);
+        worksheet.addRow(['Address', user.homeAddress]);
+        worksheet.addRow(['City', user.homeCity]);
+        worksheet.addRow(['State', user.homeState]);
+        worksheet.addRow(['Country', user.homeCountry]);
+        worksheet.addRow(['']);
+        
+        // Add agent info (if agent application)
+        if (applicationType === 'agent' && application.agent) {
+            worksheet.addRow(['Agent Information']);
+            worksheet.addRow(['Agent ID', application.agent.agentId]);
+            worksheet.addRow(['Company Name', application.agent.companyName]);
+            worksheet.addRow(['Contact Person', application.agent.contactPerson]);
+            worksheet.addRow(['Email', application.agent.email]);
+            worksheet.addRow(['Phone', application.agent.phone]);
+            worksheet.addRow(['']);
+        }
+        
+        // Add program info
+        worksheet.addRow(['Program Information']);
+        worksheet.addRow(['Program Name', program?.programName || 'N/A']);
+        worksheet.addRow(['School', program?.schoolName || 'N/A']);
+        worksheet.addRow(['Degree', program?.degree || 'N/A']);
+        worksheet.addRow(['Degree Level', program?.degreeLevel || 'N/A']);
+        worksheet.addRow(['Category', program?.category || 'N/A']);
+        worksheet.addRow(['Language', program?.language || 'N/A']);
+        worksheet.addRow(['Semesters', program?.semesters || 'N/A']);
+        worksheet.addRow(['Fee', program?.fee || 'N/A']);
+        worksheet.addRow(['Fee Currency', program?.feeCurrency || 'N/A']);
+        worksheet.addRow(['Location', program?.location || 'N/A']);
+        worksheet.addRow(['Application Fee', program?.applicationFee || 'N/A']);
+        worksheet.addRow(['']);
+        
+        // Add documents
+        worksheet.addRow(['Documents']);
+        worksheet.addRow(['Document Type', 'Status', 'Upload Date', 'Admin Comment']);
+        
+        documents.forEach(doc => {
+            worksheet.addRow([
+                doc.documentType,
+                doc.status,
+                new Date(doc.uploadDate).toLocaleDateString(),
+                doc.adminComment || 'N/A'
+            ]);
+        });
+        
+        // Style the worksheet
+        worksheet.getColumn(1).width = 25;
+        worksheet.getColumn(2).width = 50;
+        
+        // Generate Excel buffer
+        const excelBuffer = await workbook.xlsx.writeBuffer();
+        
+        // Update application status
         await application.update({
             applicationStatus: 'submitted_to_school',
             applicationStatusDate: new Date()
         });
         
-        // Send email notification
+        // Send email notification with attachments
         if (user) {
             await sendApplicationSubmissionEmail(
                 application, 
                 user, 
                 program, 
                 schoolName,
-                applicationType === 'direct' ? 'member' : 'agent'
+                applicationType === 'direct' ? 'member' : 'agent',
+                {
+                    csvData,
+                    excelBuffer,
+                    filename: `Application_${application.applicationId}_${new Date().toISOString().split('T')[0]}`
+                }
             );
         }
         
         return messageHandler(
-            'Application sent to school successfully',
+            'Application sent to school successfully with export data',
             true,
             200,
-            application
+            {
+                application,
+                exportData: {
+                    csv: csvData,
+                    excel: excelBuffer,
+                    filename: `Application_${application.applicationId}_${new Date().toISOString().split('T')[0]}`
+                }
+            }
         );
     } catch (error) {
         console.error('Send application to school error:', error);
@@ -1917,7 +2131,7 @@ export const exportApplicationsComprehensiveService = async (query) => {
       'Applicant Home Country', 'Applicant Home Zip Code', 'Applicant Schengen Visa Holder',
       'Applicant Status', 'Applicant Registration Date',
       
-      // Agent fields (for agent applications)
+      // Agent fields
       'Agent ID', 'Agent Company Name', 'Agent Contact Person', 'Agent Email', 'Agent Phone',
       
       // Program fields

@@ -209,6 +209,62 @@ export const sendApplicationToSchool = async (req, res) => {
     }
 };
 
+// Send application to school with export data
+export const sendApplicationToSchoolWithExport = async (req, res) => {
+    try {
+        const { applicationId, applicationType } = req.params;
+        const { format = 'excel' } = req.query; // 'excel' or 'csv'
+        
+        if (!applicationId || !applicationType) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler(
+                    "Application ID and type are required",
+                    false,
+                    BAD_REQUEST
+                )
+            );
+        }
+        
+        const result = await adminApplicationService.sendApplicationToSchoolService(
+            applicationId,
+            applicationType
+        );
+        
+        if (!result.success) {
+            return res.status(result.statusCode).json(result);
+        }
+        
+        // Return export data based on requested format
+        if (format === 'csv') {
+            res.set({
+                'Content-Type': 'text/csv',
+                'Content-Disposition': `attachment; filename=${result.data.exportData.filename}.csv`,
+                'Access-Control-Expose-Headers': 'Content-Disposition',
+                'Vary': 'Origin'
+            });
+            return res.send(result.data.exportData.csv);
+        } else {
+            // Default to Excel
+            res.set({
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition': `attachment; filename=${result.data.exportData.filename}.xlsx`,
+                'Access-Control-Expose-Headers': 'Content-Disposition',
+                'Vary': 'Origin'
+            });
+            return res.send(Buffer.from(result.data.exportData.excel));
+        }
+    } catch (error) {
+        console.error('Send to school with export error:', error);
+        return res.status(500).json(
+            messageHandler(
+                "Internal server error",
+                false,
+                500
+            )
+        );
+    }
+};
+
 export const exportApplicationToExcel = async (req, res) => {
     try {
         const { id: applicationId } = req.params;

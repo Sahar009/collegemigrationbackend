@@ -101,6 +101,12 @@ adminRouter.post('/applications/:applicationType/:applicationId/send-to-school',
     asyncHandler(adminApplicationController.sendApplicationToSchool)
 );
 
+// Send application to school with export data
+adminRouter.post('/applications/:applicationType/:applicationId/send-to-school/export', 
+    requireRole(['super_admin', 'admin']), 
+    asyncHandler(adminApplicationController.sendApplicationToSchoolWithExport)
+);
+
 // Super admin only routes
 adminRouter.post('/admins', 
     // requireRole(['super_admin']), 
