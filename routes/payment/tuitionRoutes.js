@@ -2,7 +2,8 @@ import express from 'express';
 import { 
     initiateTuitionPaymentController,
     getTuitionPaymentsController,
-    verifyTuitionPaymentController
+    verifyTuitionPaymentController,
+    getSingleTuitionPaymentController
 } from '../../controllers/tuitionPaymentController.js';
 import { authenticateUser } from '../../middlewares/auth-middleware.js';
 import { authenticateAdmin } from '../../middleware/adminAuthMiddleware.js';
@@ -31,6 +32,10 @@ tuitionRouter.get('/agent/verify',
     verifyTuitionPaymentController
 );
 
+tuitionRouter.get('/:paymentId', 
+    authenticateAdmin,
+    getSingleTuitionPaymentController
+);
 // Admin routes
 tuitionRouter.get('/', 
     authenticateAdmin,

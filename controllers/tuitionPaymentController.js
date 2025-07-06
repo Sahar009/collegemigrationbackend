@@ -83,3 +83,24 @@ export const verifyTuitionPaymentController = async (req, res) => {
         );
     }
 };
+
+import { getSingleTuitionPayment } from '../service/tuitionPaymentService.js';
+// ...existing imports
+
+export const getSingleTuitionPaymentController = async (req, res) => {
+    try {
+        const { paymentId } = req.params;
+        if (!paymentId) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler("Payment ID is required", false, BAD_REQUEST)
+            );
+        }
+        const result = await getSingleTuitionPayment(paymentId);
+        return res.status(result.success ? SUCCESS : BAD_REQUEST).json(result);
+    } catch (error) {
+        console.error('Get single tuition payment error:', error);
+        return res.status(BAD_REQUEST).json(
+            messageHandler(error.message || "Error retrieving tuition payment", false, BAD_REQUEST)
+        );
+    }
+};
