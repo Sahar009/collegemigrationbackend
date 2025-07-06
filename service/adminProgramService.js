@@ -251,7 +251,6 @@ export const toggleProgramStatusService = async (programId) => {
 
 // Import programs from CSV
 export const importProgramsFromCSVService = async (filePath) => {
-  console.log('Starting CSV import from file:', filePath);
   const t = await sequelize.transaction();
   
   try {
@@ -260,7 +259,6 @@ export const importProgramsFromCSVService = async (filePath) => {
     let rowCount = 0;
     
     // Process CSV file
-    console.log('Starting to process CSV file...');
     
     // Read the entire file first
     const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -278,7 +276,6 @@ export const importProgramsFromCSVService = async (filePath) => {
     // Process each row sequentially
     for (const [index, row] of rows.entries()) {
       rowCount = index + 1;
-      console.log(`Processing row ${rowCount}:`, row);
       
       // Validate required fields
       if (!row.programName || !row.schoolId || !row.degree || !row.category) {
@@ -301,7 +298,6 @@ export const importProgramsFromCSVService = async (filePath) => {
       }
       
       // Check if school exists
-      console.log(`Looking up school with ID: ${row.schoolId}`);
       const school = await School.findByPk(row.schoolId, { transaction: t });
       
       if (!school) {
@@ -331,13 +327,10 @@ export const importProgramsFromCSVService = async (filePath) => {
         isActive: row.isActive === 'true' || row.isActive === '1' || true
       };
       
-      console.log(`Prepared program data for import:`, programData);
       programs.push(programData);
     }
     
-    console.log(`Finished processing CSV. Found ${errors.length} errors.`);
-    console.log(`Prepared ${programs.length} programs for import.`);
-    
+  
     // If there are errors, rollback and return them
     if (errors.length > 0) {
       await t.rollback();
@@ -350,13 +343,11 @@ export const importProgramsFromCSVService = async (filePath) => {
     }
     
     // Bulk create programs
-    console.log('Attempting to bulk create programs...');
     const createdPrograms = await Program.bulkCreate(programs, { 
       transaction: t,
       returning: true,
       validate: true
     });
-    console.log(`Bulk create result:`, createdPrograms.length, 'programs created');
     
     await t.commit();
     
@@ -391,38 +382,95 @@ export const importProgramsFromCSVService = async (filePath) => {
   }
 };
 
+// Helper function to build export filters
+const buildExportFilters = (query) => {
+  const { 
+    search = '',
+    schoolId,
+    degree,
+    status
+  } = query;
+  
+  const whereConditions = {};
+  
+  if (search) {
+    whereConditions[Op.or] = [
+      { programName: { [Op.like]: `%${search}%` } },
+      { schoolName: { [Op.like]: `%${search}%` } }
+    ];
+  }
+  
+  if (schoolId) {
+    whereConditions.schoolId = schoolId;
+  }
+  
+  if (degree) {
+    whereConditions.degree = degree;
+  }
+  
+  if (status) {
+    whereConditions.isActive = status === 'active';
+  }
+  
+  return whereConditions;
+};
+
 export const exportProgramsService = async (query) => {
   try {
+
+    // Test database connection first
+    try {
+      await sequelize.authenticate();
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError);
+      return messageHandler('Database connection failed', false, 500);
+    }
+    
+    const whereConditions = buildExportFilters(query);
+    console.log('Built where conditions:', JSON.stringify(whereConditions, null, 2));
+    
+    // Check total programs without filters first
+    const totalPrograms = await Program.count();
+    console.log(`Total programs in database: ${totalPrograms}`);
+    
+    if (totalPrograms === 0) {
+      console.log('No programs found in database at all');
+      return messageHandler('No programs found in database', false, 404);
+    }
+    
+    // Now try with filters
     const programs = await Program.findAll({
-      where: buildExportFilters(query),
+      where: whereConditions,
       raw: true
     });
 
+    console.log(`Found ${programs.length} programs to export with filters`);
+    
     if (programs.length === 0) {
-      return messageHandler('No programs found to export', false, 404);
+      console.log('No programs match the current filters, but programs exist in database');
+      return messageHandler('No programs found to export with current filters', false, 404);
     }
 
     // Create CSV headers based on import structure
     const headers = [
-      'programName', 'schoolId', 'degree', 'degreeLevel',
+      'programName', 'schoolId', 'degree', 'degreeLevel', 'category',
       'language', 'semesters', 'fee', 'applicationFee',
-      'location', 'about', 'features', 'applicationDeadline',
-      'isActive'
+      'location', 'about', 'features', 'isActive'
     ];
+
+
 
     // Create CSV content
     let csvContent = headers.join(',') + '\n';
     
-    programs.forEach(program => {
+    programs.forEach((program, index) => {
+      console.log(`Processing program ${index + 1}:`, program.programName);
       const row = headers.map(header => {
         let value = program[header] || '';
         
         // Handle special formatting
         if (header === 'isActive') {
           value = program.isActive ? 'true' : 'false';
-        }
-        if (header === 'applicationDeadline' && program.applicationDeadline) {
-          value = new Date(program.applicationDeadline).toISOString().split('T')[0];
         }
         
         // Escape commas and wrap in quotes if needed

@@ -5,6 +5,10 @@
  */
 export const asyncHandler = (fn) => {
     return (req, res, next) => {
+        console.log('=== ASYNC HANDLER CALLED ===');
+        console.log('Path:', req.path);
+        console.log('Method:', req.method);
+        
         Promise.resolve(fn(req, res, next))
             .catch((error) => {
                 console.error('Request Error:', {

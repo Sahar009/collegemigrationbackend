@@ -122,6 +122,7 @@ adminRouter.get('/dashboard', asyncHandler(adminDashboardController.getDashboard
 
 //program routes
 adminRouter.get('/programs', asyncHandler(adminProgramController.getAllPrograms));
+adminRouter.get('/programs/export', asyncHandler(adminProgramController.exportPrograms));
 adminRouter.get('/programs/:programId', asyncHandler(adminProgramController.getProgramById));
 adminRouter.post('/programs', asyncHandler(adminProgramController.createProgram));
 adminRouter.put('/programs/:programId', asyncHandler(adminProgramController.updateProgram));
@@ -131,7 +132,6 @@ adminRouter.post('/programs/import',
     uploadCSV,
     asyncHandler(adminProgramController.importProgramsFromCSV)
 );
-adminRouter.get('/programs/export', asyncHandler(adminProgramController.exportPrograms));
 adminRouter.patch('/programs/:id/status', asyncHandler(toggleProgramStatusController));
 
 //school routes

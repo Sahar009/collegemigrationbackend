@@ -674,7 +674,12 @@ export const updateUserDocumentService = async (documentId, documentType, update
                             hour: '2-digit',
                             minute: '2-digit'
                         }),
-                        loginUrl: `${process.env.FRONTEND_URL || 'https://your-frontend-url.com'}/login`
+                        loginUrl: `${process.env.FRONTEND_URL || 'https://your-frontend-url.com'}/login`,
+                        attachments: document.attachments ? document.attachments.map(file => ({
+                            name: file.name || 'Document',
+                            url: file.path ? `${process.env.BACKEND_URL || 'https://your-backend-url.com'}${file.path}` : '#',
+                            size: file.size
+                        })) : []
                     };
 
                     // Send email

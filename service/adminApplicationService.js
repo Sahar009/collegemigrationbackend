@@ -1627,6 +1627,346 @@ export const initiateAgentApplicationService = async (memberId, programData, age
     }
 };
 
+// Enhanced export applications with comprehensive data
+export const exportApplicationsComprehensiveService = async (query) => {
+  try {
+    console.log('=== COMPREHENSIVE APPLICATION EXPORT ===');
+    console.log('Export query received:', query);
+    
+    const { 
+      status,
+      programCategory,
+      startDate,
+      endDate,
+      applicationType = 'all', // 'all', 'direct', or 'agent'
+      includeDocuments = 'true' // Whether to include document information
+    } = query;
+    
+    // Build date filter
+    const dateFilter = {};
+    if (startDate && endDate) {
+      dateFilter.applicationDate = {
+        [Op.between]: [
+          new Date(startDate), 
+          new Date(new Date(endDate).setHours(23, 59, 59, 999))
+        ]
+      };
+    } else if (startDate) {
+      dateFilter.applicationDate = { [Op.gte]: new Date(startDate) };
+    } else if (endDate) {
+      dateFilter.applicationDate = { 
+        [Op.lte]: new Date(new Date(endDate).setHours(23, 59, 59, 999)) 
+      };
+    }
+    
+    // Build status filter
+    const statusFilter = status ? { applicationStatus: status } : {};
+    const categoryFilter = programCategory ? { programCategory } : {};
+    
+    console.log('Date filter:', dateFilter);
+    console.log('Status filter:', statusFilter);
+    
+    // Helper function to format comprehensive application data
+    const formatComprehensiveApplication = async (app, type) => {
+      const baseData = {
+        'Application ID': app.applicationId,
+        'Application Type': type === 'agent' ? 'Agent' : 'Direct',
+        'Application Date': new Date(app.applicationDate).toLocaleString(),
+        'Application Status': app.applicationStatus,
+        'Payment Status': app.paymentStatus,
+        'Application Stage': app.applicationStage,
+        'Intake': app.intake || 'N/A',
+        'Application Status Date': app.applicationStatusDate ? new Date(app.applicationStatusDate).toLocaleString() : 'N/A'
+      };
+
+      let applicantData = {};
+      let agentData = {};
+      let programData = {};
+      let documentData = {};
+
+      if (type === 'agent') {
+        // Agent application data
+        applicantData = {
+          'Applicant ID': app.student?.memberId || 'N/A',
+          'Applicant First Name': app.student?.firstname || 'N/A',
+          'Applicant Last Name': app.student?.lastname || 'N/A',
+          'Applicant Email': app.student?.email || 'N/A',
+          'Applicant Phone': app.student?.phone || 'N/A',
+          'Applicant Nationality': app.student?.nationality || 'N/A',
+          'Applicant Status': app.student?.memberStatus || 'N/A'
+        };
+
+        agentData = {
+          'Agent ID': app.agent?.agentId || 'N/A',
+          'Agent Company Name': app.agent?.companyName || 'N/A',
+          'Agent Contact Person': app.agent?.contactPerson || 'N/A',
+          'Agent Email': app.agent?.email || 'N/A',
+          'Agent Phone': app.agent?.phone || 'N/A'
+        };
+      } else {
+        // Direct application data
+        applicantData = {
+          'Applicant ID': app.applicationMember?.memberId || 'N/A',
+          'Applicant First Name': app.applicationMember?.firstname || 'N/A',
+          'Applicant Last Name': app.applicationMember?.lastname || 'N/A',
+          'Applicant Other Names': app.applicationMember?.othernames || 'N/A',
+          'Applicant Email': app.applicationMember?.email || 'N/A',
+          'Applicant Phone': app.applicationMember?.phone || 'N/A',
+          'Applicant Gender': app.applicationMember?.gender || 'N/A',
+          'Applicant Date of Birth': app.applicationMember?.dob ? new Date(app.applicationMember.dob).toLocaleDateString() : 'N/A',
+          'Applicant Nationality': app.applicationMember?.nationality || 'N/A',
+          'Applicant ID Type': app.applicationMember?.idType || 'N/A',
+          'Applicant ID Number': app.applicationMember?.idNumber || 'N/A',
+          'Applicant Home Address': app.applicationMember?.homeAddress || 'N/A',
+          'Applicant Home City': app.applicationMember?.homeCity || 'N/A',
+          'Applicant Home State': app.applicationMember?.homeState || 'N/A',
+          'Applicant Home Country': app.applicationMember?.homeCountry || 'N/A',
+          'Applicant Home Zip Code': app.applicationMember?.homeZipCode || 'N/A',
+          'Applicant Schengen Visa Holder': app.applicationMember?.schengenVisaHolder ? 'Yes' : 'No',
+          'Applicant Status': app.applicationMember?.memberStatus || 'N/A',
+          'Applicant Registration Date': app.applicationMember?.regDate ? new Date(app.applicationMember.regDate).toLocaleDateString() : 'N/A'
+        };
+      }
+
+      // Program data
+      programData = {
+        'Program ID': app.program?.programId || 'N/A',
+        'Program Name': app.program?.programName || 'N/A',
+        'Program Degree': app.program?.degree || 'N/A',
+        'Program Degree Level': app.program?.degreeLevel || 'N/A',
+        'Program Category': app.program?.category || 'N/A',
+        'School Name': app.program?.schoolName || 'N/A',
+        'Program Language': app.program?.language || 'N/A',
+        'Program Semesters': app.program?.semesters || 'N/A',
+        'Program Fee': app.program?.fee || 'N/A',
+        'Program Fee Currency': app.program?.feeCurrency || 'N/A',
+        'Program Location': app.program?.location || 'N/A',
+        'Program Application Fee': app.program?.applicationFee || 'N/A',
+        'Program About': app.program?.about || 'N/A'
+      };
+
+      // Document data (if requested)
+      if (includeDocuments === 'true') {
+        let documents = [];
+        
+        if (type === 'agent') {
+          // Get agent student documents
+          documents = await AgentStudentDocument.findAll({
+            where: { 
+              memberId: app.memberId,
+              agentId: app.agentId 
+            },
+            attributes: ['documentId', 'documentType', 'documentPath', 'status', 'uploadDate', 'adminComment']
+          });
+        } else {
+          // Get application documents
+          documents = await ApplicationDocument.findAll({
+            where: { memberId: app.memberId },
+            attributes: ['documentId', 'documentType', 'documentPath', 'status', 'uploadDate', 'adminComment']
+          });
+        }
+
+        // Create document summary
+        const documentTypes = documents.map(doc => doc.documentType).join('; ');
+        const approvedDocs = documents.filter(doc => doc.status === 'approved').length;
+        const pendingDocs = documents.filter(doc => doc.status === 'pending').length;
+        const rejectedDocs = documents.filter(doc => doc.status === 'rejected').length;
+
+        documentData = {
+          'Total Documents': documents.length,
+          'Document Types': documentTypes || 'N/A',
+          'Approved Documents': approvedDocs,
+          'Pending Documents': pendingDocs,
+          'Rejected Documents': rejectedDocs,
+          'Document Status Summary': `Approved: ${approvedDocs}, Pending: ${pendingDocs}, Rejected: ${rejectedDocs}`
+        };
+
+        // Add individual document details (first 5 documents)
+        documents.slice(0, 5).forEach((doc, index) => {
+          documentData[`Document ${index + 1} Type`] = doc.documentType;
+          documentData[`Document ${index + 1} Status`] = doc.status;
+          documentData[`Document ${index + 1} Upload Date`] = new Date(doc.uploadDate).toLocaleDateString();
+          documentData[`Document ${index + 1} Admin Comment`] = doc.adminComment || 'N/A';
+        });
+      }
+
+      return {
+        ...baseData,
+        ...applicantData,
+        ...agentData,
+        ...programData,
+        ...documentData
+      };
+    };
+
+    // Fetch applications based on type
+    const fetchDirectApplications = async () => {
+      if (applicationType !== 'agent') {
+        console.log('Fetching direct applications...');
+        return await Application.findAll({
+          where: {
+            ...dateFilter,
+            ...statusFilter,
+            ...categoryFilter
+          },
+          include: [
+            {
+              model: Member,
+              as: 'applicationMember',
+              attributes: [
+                'memberId', 'firstname', 'lastname', 'othernames', 
+                'email', 'phone', 'gender', 'dob', 'nationality',
+                'homeAddress', 'homeCity', 'homeState', 'homeCountry',
+                'homeZipCode', 'idType', 'idNumber', 'schengenVisaHolder',
+                'memberStatus', 'regDate'
+              ]
+            },
+            {
+              model: Program,
+              as: 'program',
+              attributes: [
+                'programId', 'programName', 'degree', 'degreeLevel',
+                'category', 'schoolName', 'language', 'semesters',
+                'fee', 'feeCurrency', 'location', 'applicationFee', 'about'
+              ]
+            }
+          ],
+          order: [['applicationDate', 'DESC']]
+        });
+      }
+      return [];
+    };
+
+    const fetchAgentApplications = async () => {
+      if (applicationType !== 'direct') {
+        console.log('Fetching agent applications...');
+        return await AgentApplication.findAll({
+          where: {
+            ...dateFilter,
+            ...statusFilter
+          },
+          include: [
+            {
+              model: Agent,
+              attributes: ['agentId', 'companyName', 'contactPerson', 'email', 'phone']
+            },
+            {
+              model: AgentStudent,
+              attributes: ['memberId', 'firstname', 'lastname', 'email', 'phone', 'nationality', 'memberStatus']
+            },
+            {
+              model: Program,
+              attributes: [
+                'programId', 'programName', 'degree', 'degreeLevel',
+                'category', 'schoolName', 'language', 'semesters',
+                'fee', 'feeCurrency', 'location', 'applicationFee', 'about'
+              ]
+            }
+          ],
+          order: [['applicationDate', 'DESC']]
+        });
+      }
+      return [];
+    };
+
+    // Fetch both types of applications in parallel
+    console.log('Fetching applications...');
+    const [directApps, agentApps] = await Promise.all([
+      fetchDirectApplications(),
+      fetchAgentApplications()
+    ]);
+
+    console.log(`Found ${directApps.length} direct applications and ${agentApps.length} agent applications`);
+
+    // Format all applications with comprehensive data
+    const allApplications = [];
+    
+    // Process direct applications
+    for (const app of directApps) {
+      const formattedApp = await formatComprehensiveApplication(app, 'direct');
+      allApplications.push(formattedApp);
+    }
+    
+    // Process agent applications
+    for (const app of agentApps) {
+      const formattedApp = await formatComprehensiveApplication(app, 'agent');
+      allApplications.push(formattedApp);
+    }
+
+    if (allApplications.length === 0) {
+      return messageHandler(
+        'No applications found matching the criteria',
+        false,
+        NOT_FOUND
+      );
+    }
+
+    console.log(`Formatted ${allApplications.length} applications for export`);
+
+    // Create CSV with all possible fields
+    const fields = [
+      // Application fields
+      'Application ID', 'Application Type', 'Application Date', 'Application Status',
+      'Payment Status', 'Application Stage', 'Intake', 'Application Status Date',
+      
+      // Applicant fields
+      'Applicant ID', 'Applicant First Name', 'Applicant Last Name', 'Applicant Other Names',
+      'Applicant Email', 'Applicant Phone', 'Applicant Gender', 'Applicant Date of Birth',
+      'Applicant Nationality', 'Applicant ID Type', 'Applicant ID Number',
+      'Applicant Home Address', 'Applicant Home City', 'Applicant Home State',
+      'Applicant Home Country', 'Applicant Home Zip Code', 'Applicant Schengen Visa Holder',
+      'Applicant Status', 'Applicant Registration Date',
+      
+      // Agent fields (for agent applications)
+      'Agent ID', 'Agent Company Name', 'Agent Contact Person', 'Agent Email', 'Agent Phone',
+      
+      // Program fields
+      'Program ID', 'Program Name', 'Program Degree', 'Program Degree Level',
+      'Program Category', 'School Name', 'Program Language', 'Program Semesters',
+      'Program Fee', 'Program Fee Currency', 'Program Location', 'Program Application Fee',
+      'Program About',
+      
+      // Document fields (if included)
+      'Total Documents', 'Document Types', 'Approved Documents', 'Pending Documents',
+      'Rejected Documents', 'Document Status Summary',
+      'Document 1 Type', 'Document 1 Status', 'Document 1 Upload Date', 'Document 1 Admin Comment',
+      'Document 2 Type', 'Document 2 Status', 'Document 2 Upload Date', 'Document 2 Admin Comment',
+      'Document 3 Type', 'Document 3 Status', 'Document 3 Upload Date', 'Document 3 Admin Comment',
+      'Document 4 Type', 'Document 4 Status', 'Document 4 Upload Date', 'Document 4 Admin Comment',
+      'Document 5 Type', 'Document 5 Status', 'Document 5 Upload Date', 'Document 5 Admin Comment'
+    ];
+
+    const parser = new Parser({ fields });
+    const csv = parser.parse(allApplications);
+    const filename = `comprehensive-applications-export-${new Date().toISOString().split('T')[0]}.csv`;
+
+    console.log(`CSV generated successfully. Size: ${csv.length} characters`);
+
+    return messageHandler(
+      'Comprehensive applications exported successfully',
+      true,
+      SUCCESS,
+      {
+        csvData: csv,
+        filename: filename,
+        count: allApplications.length,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="${filename}"`
+        }
+      }
+    );
+
+  } catch (error) {
+    console.error('Comprehensive export applications error:', error);
+    return messageHandler(
+      error.message || 'Failed to export comprehensive applications',
+      false,
+      BAD_REQUEST
+    );
+  }
+};
+
 
 
 

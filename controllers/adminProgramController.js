@@ -142,23 +142,38 @@ export const importProgramsFromCSV = async (req, res) => {
 
 // Export programs
 export const exportPrograms = async (req, res) => {
+  console.log('=== EXPORT PROGRAMS CONTROLLER CALLED ===');
+  console.log('Request method:', req.method);
+  console.log('Request URL:', req.url);
+  console.log('Request query:', req.query);
+  console.log('Request headers:', req.headers);
+  console.log('Admin info:', req.admin);
+  
+  // Test if exportProgramsService is available
+  console.log('exportProgramsService type:', typeof exportProgramsService);
+  console.log('exportProgramsService:', exportProgramsService);
+  
   try {
+    console.log('About to call exportProgramsService...');
     const result = await exportProgramsService(req.query);
-    
+   
     if (!result.success) {
       return res.status(result.statusCode).json(result);
     }
 
+    console.log('Export result structure:', Object.keys(result));
+    console.log('Export data structure:', Object.keys(result.data));
+
     // Set secure headers
     res.set({
       'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename=${result.filename}`,
+      'Content-Disposition': `attachment; filename=${result.data.filename}`,
       // 'Access-Control-Allow-Origin': 'http://localhost:5173',
       'Access-Control-Expose-Headers': 'Content-Disposition',
       'Vary': 'Origin'
     });
 
-    return res.send(result.csvData);
+    return res.send(result.data.csvData);
 
   } catch (error) {
     console.error('Export controller error:', error);
