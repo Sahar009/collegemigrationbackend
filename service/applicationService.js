@@ -125,14 +125,14 @@ export const initiateApplicationService = async (memberId, programData, callback
         //     ));
         // }
         // Verify profile completion
-        const isProfileComplete = await verifyMemberProfile(memberId);
-        if (!isProfileComplete) {
-            return callback(messageHandler(
-                "Please complete your profile before applying", 
-                false, 
-                BAD_REQUEST
-            ));
-        }
+        // const isProfileComplete = await verifyMemberProfile(memberId);
+        // if (!isProfileComplete) {
+        //     return callback(messageHandler(
+        //         "Please complete your profile before applying", 
+        //         false, 
+        //         BAD_REQUEST
+        //     ));
+        // }
 
         // Check if document validation is required from config
         const requireDocValidation = await getConfig('require_document_validation');

@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Admin from '../schema/AdminSchema.js';
-import { messageHandler, hashPassword, verifyPassword, generateAdminToken } from '../utils/index.js';
+import { messageHandler, hashPassword, verifyPassword, generateAdminToken, migratePasswordHash } from '../utils/index.js';
 import { BAD_REQUEST, SUCCESS, UNAUTHORIZED } from '../constants/statusCode.js';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/sendEmail.js';
@@ -46,7 +46,7 @@ export const login = async (req, res) => {
         }
         
         // Use the utility function instead of direct bcrypt
-        const isPasswordValid = await verifyPassword(password, admin.password);
+        const isPasswordValid = await verifyPassword(password, admin.password, admin);
         
         if (!isPasswordValid) {
             console.log('Password validation failed for admin:', email);
@@ -57,6 +57,18 @@ export const login = async (req, res) => {
                     UNAUTHORIZED
                 )
             );
+        }
+        
+        // Auto-migrate password hash if it's in PHP format
+        if (admin.password.startsWith('$2y$')) {
+            try {
+                const migratedHash = await migratePasswordHash(password, admin.password);
+                await admin.update({ password: migratedHash });
+                console.log('Password hash migrated for admin:', email);
+            } catch (migrationError) {
+                console.error('Password migration failed for admin:', email, migrationError);
+                // Continue with login even if migration fails
+            }
         }
         
         // Generate token using the utility function
@@ -238,7 +250,7 @@ export const changePassword = async (req, res) => {
         }
         
         // Verify current password
-        const isPasswordValid = await verifyPassword(currentPassword, admin.password);
+        const isPasswordValid = await verifyPassword(currentPassword, admin.password, admin);
         
         if (!isPasswordValid) {
             return res.status(UNAUTHORIZED).json(
@@ -315,7 +327,7 @@ export const forgotPassword = async (req, res) => {
         
         // Send email with reset link
         const resetLink = `${process.env.FRONTEND_URL}/admin/reset-password?token=${resetToken}`;
-        
+        console.log(resetLink)
         await sendEmail({
             to: admin.email,
             subject: 'Password Reset Request',

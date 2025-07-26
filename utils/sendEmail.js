@@ -31,8 +31,11 @@ const createTransporter = () => {
             return null;
         }
 
-        const gmailTransporter = nodemailer.createTransport({
-            service: 'gmail',
+        // Use SMTP for custom domain (collegemigration.com)
+        const smtpTransporter = nodemailer.createTransport({
+            host: process.env.EMAIL_HOST || 'collegemigration.com', // Outgoing Server
+            port: process.env.EMAIL_PORT ? parseInt(process.env.EMAIL_PORT) : 465, // SMTP Port
+            secure: process.env.EMAIL_SECURE === 'false' ? false : true, // true for 465, false for 587
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_APP_PASSWORD
@@ -43,11 +46,11 @@ const createTransporter = () => {
             debug: true // Enable debug logs
         });
 
-        gmailTransporter.on('error', (error) => {
+        smtpTransporter.on('error', (error) => {
             logEmailError('Transporter Error', error);
         });
 
-        return gmailTransporter;
+        return smtpTransporter;
     } catch (error) {
         logEmailError('Transporter Creation', error);
         return null;

@@ -13,6 +13,7 @@ import adminGroupRouter from './adminMessage/adminGroupRoutes.js';
 import adminMessageRouter from './adminMessage/index.js';
 import commisionRouter from './commissionRate.js';
 import tuitionRouter from './payment/tuitionRoutes.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 const router = (app) => {
     const API_PREFIX = '/api/v1';
@@ -29,7 +30,21 @@ const router = (app) => {
     app.use(`${API_PREFIX}/adminMessage`, adminGroupRouter);
     app.use(`${API_PREFIX}/adminMessage`, adminMessageRouter);
     app.use(`${API_PREFIX}/commission-rates`, commisionRouter);
-    
+
+    // Test email route
+    app.get(`${API_PREFIX}/test-email`, async (req, res) => {
+        try {
+            const result = await sendEmail({
+                to: "sehindeshoes@gmail.com",
+                subject: 'Test Email from College Migration',
+                template: 'test', // You should have a test.html or test.ejs template
+                context: { name: 'Test User' }
+            });
+            res.json({ success: true, result });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
 };
 
 export default router;

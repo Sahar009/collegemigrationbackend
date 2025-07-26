@@ -1,14 +1,52 @@
 import { Sequelize } from 'sequelize';
 import { config } from "../config/config.js";
 
+// const sequelize = new Sequelize(
+//   config.database.name,
+//   config.database.user,
+//   config.database.password,
+//   config.database.name,
+//   config.database.user,
+//   config.database.password,
+//   {
+//     host: config.database.host,
+//     port: config.database.port,
+//     dialect: 'mysql',
+//     logging: false,
+//     pool: {
+//       max: 5,
+//       min: 0,
+//       acquire: 30000,
+//       idle: 10000
+//     },
+//     dialectOptions: {
+//       ssl: {
+//         require: true,
+//         rejectUnauthorized: false
+//       }
+//     },
+//     retry: {
+//       match: [
+//         /SequelizeConnectionError/,
+//         /SequelizeConnectionRefusedError/,
+//         /SequelizeHostNotFoundError/,
+//         /SequelizeHostNotReachableError/,
+//         /SequelizeInvalidConnectionError/,
+//         /SequelizeConnectionTimedOutError/,
+//         /TimeoutError/
+//       ],
+//       max: 3
+//     }
+//   }
+// )
 const sequelize = new Sequelize(
-  config.database.name,
-  config.database.user,
-  config.database.password,
+  config.development.database,
+  config.development.username,
+  config.development.password,
   {
-    host: config.database.host,
-    port: config.database.port,
-    dialect: 'mysql',
+    host: config.development.host,
+    port: config.development.port,
+    dialect: config.development.dialect,
     logging: false,
     pool: {
       max: 5,
@@ -16,12 +54,7 @@ const sequelize = new Sequelize(
       acquire: 30000,
       idle: 10000
     },
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      }
-    },
+    // Remove dialectOptions.ssl for local dev unless you need SSL locally
     retry: {
       match: [
         /SequelizeConnectionError/,

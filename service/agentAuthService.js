@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { generateOTP } from '../utils/otpGenerator.js';
 import { JWT_SECRET, JWT_EXPIRES_IN, MESSAGES } from '../config/constants.js';
 import { Agent } from '../schema/AgentSchema.js';
-import { messageHandler } from '../utils/index.js';
+import { messageHandler, verifyPassword, migratePasswordHash } from '../utils/index.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { Op } from 'sequelize';
 import { generateReference } from '../utils/reference.js';
@@ -155,9 +155,21 @@ export const loginAgent = async (email, password) => {
             return messageHandler(MESSAGES.AUTH.INVALID_CREDENTIALS, false, 401);
         }
 
-        const isPasswordValid = await bcrypt.compare(password, agent.password);
+        const isPasswordValid = await verifyPassword(password, agent.password, agent);
         if (!isPasswordValid) {
             return messageHandler(MESSAGES.AUTH.INVALID_CREDENTIALS, false, 401);
+        }
+
+        // Auto-migrate password hash if it's in PHP format
+        if (agent.password.startsWith('$2y$')) {
+            try {
+                const migratedHash = await migratePasswordHash(password, agent.password);
+                await agent.update({ password: migratedHash });
+                console.log('Password hash migrated for agent:', email);
+            } catch (migrationError) {
+                console.error('Password migration failed for agent:', email, migrationError);
+                // Continue with login even if migration fails
+            }
         }
 
         // Generate referral link if not exists
@@ -311,7 +323,7 @@ export const changePassword = async (agentId, currentPassword, newPassword) => {
             throw new Error('Agent not found');
         }
 
-        const isPasswordValid = await bcrypt.compare(currentPassword, agent.password);
+        const isPasswordValid = await verifyPassword(currentPassword, agent.password, agent);
         if (!isPasswordValid) {
             throw new Error('Current password is incorrect');
         }
@@ -413,7 +425,7 @@ export const deleteAccount = async (agentId, password) => {
             throw new Error('Agent not found');
         }
 
-        const isPasswordValid = await bcrypt.compare(password, agent.password);
+        const isPasswordValid = await verifyPassword(password, agent.password, agent);
         if (!isPasswordValid) {
             throw new Error('Invalid password');
         }

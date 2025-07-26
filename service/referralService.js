@@ -491,14 +491,16 @@ export const getAdminReferralsService = async ({ page = 1, limit = 10, status, r
                 ? {
                     type: 'Agent',
                     id: referral.referringAgent?.agentId,
-                    name: referral.referringAgent?.companyName,
+                    name: referral.referringAgent?.companyName || 'Unknown Agent',
                     email: referral.referringAgent?.email,
                     phone: referral.referringAgent?.phone
                 }
                 : {
                     type: 'Member',
                     id: referral.referringMember?.memberId,
-                    name: `${referral.referringMember?.firstname} ${referral.referringMember?.lastname}`,
+                    name: (referral.referringMember && referral.referringMember.firstname && referral.referringMember.lastname)
+                        ? `${referral.referringMember.firstname} ${referral.referringMember.lastname}`
+                        : 'Unknown Member',
                     email: referral.referringMember?.email,
                     phone: referral.referringMember?.phone
                 },

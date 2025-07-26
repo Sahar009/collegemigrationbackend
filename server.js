@@ -8,7 +8,7 @@ import { connectToDB } from './database/db.js'
 import errorMiddleware from './middlewares/errorMiddleware.js'
 import router from './routes/index.js'
 import { cloudinary } from './config/cloudinaryConfig.js';
-import { setupHealthCheck, initCronJobs } from './utils/cronJobs.js';
+// import { setupHealthCheck, initCronJobs } from './utils/cronJobs.js';
 
 
 const app = express()
@@ -44,10 +44,10 @@ app.all('*', (req, res) => {
   });
 
   // Setup health check endpoint
-setupHealthCheck(app);
+// setupHealthCheck(app);
 
 // Initialize cron jobs
-initCronJobs();
+// initCronJobs();
 
 // Connect to database before starting server
 const startServer = async () => {

@@ -35,15 +35,50 @@ export const createProgramController = async (req, res) => {
     });
 };
 
-// Get All Programs Controller
+// Get All Programs Controller with optimized error handling
 export const getAllProgramsController = async (req, res) => {
-    await getAllProgramsService(req.query, (response) => {
-        return res.status(response.statusCode).json({
-            success: response.success,
-            message: response.message,
-            data: response.data
+    try {
+        // Add cache control headers
+        res.set('Cache-Control', 'public, max-age=60'); // 1 minute client-side cache
+        
+        // Add request timeout handling
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        await getAllProgramsService(req.query, (response) => {
+            clearTimeout(timeout);
+            
+            // Add performance headers
+            res.set('X-Response-Time', `${response.duration || 0}ms`);
+            
+            return res.status(response.statusCode).json({
+                success: response.success,
+                message: response.message,
+                data: response.data,
+                meta: {
+                    cache: response.fromCache || false,
+                    ...(response.data?.pagination || {})
+                }
+            });
         });
-    });
+    } catch (error) {
+        console.error('Controller error:', error);
+        
+        // Check for specific error types
+        if (error.name === 'AbortError') {
+            return res.status(504).json({
+                success: false,
+                message: 'Request timeout. Please try again.',
+                data: null
+            });
+        }
+        
+        return res.status(500).json({
+            success: false,
+            message: 'An unexpected error occurred while processing your request',
+            data: null
+        });
+    }
 };
 
 // Get Single Program Controller

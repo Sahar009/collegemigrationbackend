@@ -84,19 +84,15 @@ export const getUnreadMessages = async (adminId) => {
 
         const numericAdminId = Number(adminId);
 
-        // Get groups where admin is a member using parameterized query
+        // Get groups where admin is a member using MySQL JSON functions
         const groups = await AdminGroup.findAll({
-            where: {
-                members: {
-                    [Op.contains]: [numericAdminId]
-                }
-            },
+            where: sequelize.literal(`JSON_CONTAINS(members, CAST('${numericAdminId}' AS JSON))`),
             attributes: ['groupId']
         });
 
         const groupIds = groups.map(group => group.groupId);
         
-        // Get unread messages using parameterized query
+        // Get unread messages using MySQL JSON functions
         const unreadMessages = await AdminMessage.findAll({
             where: {
                 [Op.or]: [
@@ -107,13 +103,7 @@ export const getUnreadMessages = async (adminId) => {
                     {
                         [Op.or]: [
                             { readBy: null },
-                            {
-                                readBy: {
-                                    [Op.not]: {
-                                        [Op.contains]: [numericAdminId]
-                                    }
-                                }
-                            }
+                            sequelize.literal(`NOT JSON_CONTAINS(readBy, CAST('${numericAdminId}' AS JSON))`)
                         ]
                     }
                 ]

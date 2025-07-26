@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken'
 import { fileURLToPath } from 'url';
 import { Readable } from 'stream'; 
 import { Op } from 'sequelize';
+import crypto from 'crypto';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,11 +27,63 @@ export const hashPassword = async (password) => {
   return await bcrypt.hash(password, salt)
 }
 
-
-// verify password
-export const verifyPassword = async (password, hashedPassword) => {
-  return await bcrypt.compare(password, hashedPassword) 
+// migrate PHP password hash to Node.js format
+export const migratePasswordHash = async (password, oldHash) => {
+  try {
+    // If it's already a Node.js bcrypt hash, return it as is
+    if (oldHash.startsWith('$2a$') || oldHash.startsWith('$2b$')) {
+      return oldHash;
+    }
+    
+    // If it's a PHP bcrypt hash, convert it
+    if (oldHash.startsWith('$2y$')) {
+      const nodeBcryptHash = oldHash.replace(/^\$2y\$/, '$2a$');
+      return nodeBcryptHash;
+    }
+    
+    // If it's neither, hash it with Node.js bcrypt
+    return await hashPassword(password);
+  } catch (error) {
+    console.error('Password migration error:', error);
+    return await hashPassword(password);
+  }
 }
+
+
+// verify password - handles both PHP password_hash() and Node.js bcrypt
+export const verifyPassword = async (password, hashedPassword, userRecord = null) => {
+  try {
+    // 1. Try bcrypt (Node.js or PHP $2y$)
+    if (hashedPassword.startsWith('$2a$') || hashedPassword.startsWith('$2b$') || hashedPassword.startsWith('$2y$')) {
+      // Convert $2y$ to $2a$ for PHP bcrypt
+      const bcryptHash = hashedPassword.startsWith('$2y$')
+        ? hashedPassword.replace(/^ 2y\$/, '$2a$')
+        : hashedPassword;
+      const isValid = await bcrypt.compare(password, bcryptHash);
+      return isValid;
+    }
+
+    // 2. Try legacy PHP hash (e.g., SHA-256 hex string)
+    if (/^[a-f0-9]{64}$/i.test(hashedPassword)) { // SHA-256 hex
+      const sha256 = crypto.createHash('sha256').update(password).digest('hex');
+      if (sha256 === hashedPassword) {
+        // Optionally: re-hash with bcrypt and update user record
+        if (userRecord && typeof userRecord.update === 'function') {
+          const newBcrypt = await hashPassword(password);
+          await userRecord.update({ password: newBcrypt });
+        }
+        return true;
+      }
+    }
+
+    // 3. Add more legacy hash checks if needed (e.g., MD5, SHA-1)
+
+    return false;
+  } catch (error) {
+    console.error('Password verification error:', error);
+    return false;
+  }
+};
 
 
 // generate token

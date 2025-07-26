@@ -37,6 +37,14 @@ const Admin = sequelize.define('Admin', {
         type: DataTypes.ENUM('active', 'inactive'),
         defaultValue: 'active'
     },
+    resetToken: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    resetTokenExpiry: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
     lastLogin: {
         type: DataTypes.DATE,
         allowNull: true

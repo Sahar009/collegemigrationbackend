@@ -190,7 +190,7 @@ export const loginService = async (data, callback) => {
             );
         }
 
-        const isValidPassword = await verifyPassword(password, member.password);
+        const isValidPassword = await verifyPassword(password, member.password, member);
         if (!isValidPassword) {
             return callback(
                 messageHandler(MESSAGES.AUTH.INVALID_CREDENTIALS, false, UNAUTHORIZED)
@@ -492,7 +492,7 @@ export const updatePasswordService = async (memberId, currentPassword, newPasswo
         }
 
         // Verify current password
-        const isValidPassword = await verifyPassword(currentPassword, member.password);
+        const isValidPassword = await verifyPassword(currentPassword, member.password, member);
         if (!isValidPassword) {
             return callback(
                 messageHandler("Current password is incorrect", false, UNAUTHORIZED)
@@ -578,7 +578,7 @@ export const deleteAccountService = async (memberId, password, callback) => {
         }
 
         // Verify password before deletion
-        const isValidPassword = await verifyPassword(password, member.password);
+        const isValidPassword = await verifyPassword(password, member.password, member);
         if (!isValidPassword) {
             return callback(
                 messageHandler("Invalid password", false, UNAUTHORIZED)

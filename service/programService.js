@@ -2,8 +2,142 @@ import { Program } from '../schema/programSchema.js';
 import { School } from '../schema/schoolSchema.js';
 import { messageHandler } from '../utils/index.js';
 import { SUCCESS, BAD_REQUEST, NOT_FOUND } from '../constants/statusCode.js';
-import { Op } from 'sequelize';
-import { generateCacheKey, setCache, getCache, clearCache } from '../utils/cache.js';
+import { Op, literal } from 'sequelize';
+import { 
+    setCache, 
+    getCache, 
+    clearCache, 
+    generateProgramsCacheKey, 
+    invalidateProgramsCache,
+    CACHE_TTL 
+} from '../utils/cache.js';
+
+// Cache TTL in seconds
+const CACHE_CONFIG = {
+    LIST: CACHE_TTL.MEDIUM,      // 1 hour for program lists
+    DETAILS: CACHE_TTL.LONG,     // 24 hours for program details
+    SEARCH: CACHE_TTL.SHORT,     // 5 minutes for search results
+    DEFAULT: CACHE_TTL.DEFAULT   // 30 minutes default
+};
+
+// Default pagination
+const DEFAULT_PAGINATION = {
+    page: 1,
+    limit: 12,
+    maxLimit: 100
+};
+
+// Base program attributes to select
+const PROGRAM_ATTRIBUTES = [
+    'programId', 'programName', 'degree', 'degreeLevel', 'category',
+    'schoolId', 'schoolName', 'language', 'semesters', 'fee',
+    'feeCurrency', 'location', 'schoolLogo', 'programImage',
+    'applicationFee', 'isActive'
+];
+
+// School include configuration
+const SCHOOL_INCLUDE = {
+    model: School,
+    attributes: ['schoolId', 'schoolName', 'logo', 'applicationDeadline'],
+    required: false
+};
+
+/**
+ * Builds where clause for program queries
+ */
+const buildProgramsWhereClause = (query = {}) => {
+    const { 
+        search = '',
+        category = '',
+        degreeLevel = '',
+        location = '',
+        schoolId = '',
+        isActive = true
+    } = query;
+    
+    // Convert isActive to boolean if it's a string
+    let isActiveValue = isActive;
+    if (typeof isActive === 'string') {
+        isActiveValue = isActive === 'true';
+    }
+    const whereClause = { isActive: isActiveValue };
+    
+    // Add search conditions
+    if (search) {
+        const searchTerm = `%${search.trim().toLowerCase()}%`;
+        whereClause[Op.or] = [
+            literal(`LOWER(programName) LIKE '${searchTerm.replace(/'/g, '\'')}'`),
+            literal(`LOWER(Program.schoolName) LIKE '${searchTerm.replace(/'/g, '\'')}'`)
+        ];
+    }
+    
+    // Add filter conditions
+    if (category) whereClause.category = category;
+    if (degreeLevel) whereClause.degreeLevel = degreeLevel;
+    if (location) {
+        // Handle multiple countries in location filter
+        const countries = location.split(',').map(c => c.trim());
+        if (countries.length > 1) {
+            whereClause[Op.or] = countries.map(country => ({
+                location: { [Op.like]: `%${country}%` }
+            }));
+        } else {
+            whereClause.location = { [Op.like]: `%${location}%` };
+        }
+    }
+    if (schoolId) whereClause.schoolId = schoolId;
+    
+    // Debug logging
+    console.log('Query:', query);
+    console.log('Where clause:', whereClause);
+    
+    return whereClause;
+};
+
+/**
+ * Builds options for program queries
+ */
+const buildProgramsQueryOptions = (query = {}) => {
+    const { page = DEFAULT_PAGINATION.page, limit = DEFAULT_PAGINATION.limit } = query;
+    
+    // Ensure limit doesn't exceed maximum
+    const safeLimit = Math.min(
+        parseInt(limit, 10) || DEFAULT_PAGINATION.limit, 
+        DEFAULT_PAGINATION.maxLimit
+    );
+    
+    const offset = (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit;
+    
+    return {
+        attributes: PROGRAM_ATTRIBUTES,
+        include: [SCHOOL_INCLUDE],
+        where: buildProgramsWhereClause(query),
+        limit: safeLimit,
+        offset,
+        raw: true,
+        nest: true,
+        // Disable logging for production
+        logging: process.env.NODE_ENV === 'development' ? console.log : false
+    };
+};
+
+/**
+ * Gets pagination metadata
+ */
+const getPaginationMetadata = (total, page, limit) => {
+    const safeLimit = Math.min(limit, DEFAULT_PAGINATION.maxLimit);
+    const safePage = Math.max(1, page);
+    const totalPages = Math.ceil(total / safeLimit);
+    
+    return {
+        totalItems: total,
+        totalPages,
+        currentPage: safePage,
+        itemsPerPage: safeLimit,
+        hasNextPage: safePage < totalPages,
+        hasPreviousPage: safePage > 1
+    };
+};
 
 // Create Program Service
 export const createProgramService = async (data, callback) => {
@@ -70,17 +204,32 @@ export const createProgramService = async (data, callback) => {
     }
 };  
 
-// Get All Programs Service with search, filter and caching
+/**
+ * Get All Programs Service with optimized caching and pagination
+ */
 export const getAllProgramsService = async (query, callback) => {
+    const startTime = Date.now();
+    const cacheKey = generateProgramsCacheKey(query);
+    const cacheTTL = query.search ? CACHE_CONFIG.SEARCH : CACHE_CONFIG.LIST;
+    
     try {
-        // Generate cache key based on query parameters
-        const cacheKey = generateCacheKey(query);
-        
-        // Try to get data from cache
-        const cachedData = await getCache(cacheKey);
-        if (cachedData) {
+        // If countries param is present, use it as location
+        if (query.countries) {
+            query.location = query.countries;
+        }
+        // 1. Try to get from cache first
+        const cachedResult = await getCache(cacheKey);
+        if (cachedResult) {
+            const responseTime = Date.now() - startTime;
             return callback(
-                messageHandler("Programs retrieved from cache", true, SUCCESS, cachedData)
+                messageHandler("Programs retrieved from cache", true, SUCCESS, {
+                    ...cachedResult,
+                    meta: {
+                        ...cachedResult.meta,
+                        cache: 'HIT',
+                        responseTime: `${responseTime}ms`
+                    }
+                })
             );
         }
 
@@ -102,88 +251,78 @@ export const getAllProgramsService = async (query, callback) => {
         const pageNumber = Math.max(1, parseInt(page, 10) || 1);
         const offset = (pageNumber - 1) * pageSize;
 
-        // Build where clause with optimized conditions
-        const whereClause = {};
+        // 2. Build query options and execute database queries in parallel
+        const queryOptions = buildProgramsQueryOptions(query);
+        const [total, programs] = await Promise.all([
+            // Get total count with minimal fields
+            Program.count({ 
+                where: queryOptions.where,
+                distinct: true,
+                col: 'programId',
+                logging: queryOptions.logging
+            }),
+            
+            // Get paginated program data
+            Program.findAll(queryOptions)
+        ]);
         
-        // Add search functionality with optimized conditions
-        if (search && search.trim()) {
-            const searchTerm = `%${search.trim()}%`;
-            whereClause[Op.or] = [
-                { programName: { [Op.like]: searchTerm } },
-                { degree: { [Op.like]: searchTerm } },
-                { schoolName: { [Op.like]: searchTerm } },
-                { location: { [Op.like]: searchTerm } }
-            ];
-        }
-
-        // Add filters with type checking
-        if (degreeLevel) whereClause.degreeLevel = degreeLevel;
-        if (language) whereClause.language = language;
-        if (location) whereClause.location = location;
-        if (category) whereClause.category = category;
-        if (countries) whereClause.location = { [Op.like]: `%${countries}%` };
-        if (isActive !== undefined) {
-            whereClause.isActive = isActive === 'true' || isActive === true;
-        }
-
-        // Get total count and paginated results in a single query
-        const { count, rows: programs } = await Program.findAndCountAll({
-            where: whereClause,
-            limit: pageSize,
-            offset,
-            include: [{
-                model: School,
-                attributes: ['applicationDeadline'],
-                required: false // Use LEFT JOIN instead of INNER JOIN
-            }],
-            order: [
-                ['isActive', 'DESC'],  // Active programs first
-                ['programName', 'ASC'] // Then sort by name
-            ],
-            benchmark: true, // Log query execution time
-            logging: (sql, timingMs) => {
-                if (timingMs > 200) { // Log slow queries
-                    console.warn(`Slow query (${timingMs}ms): ${sql}`);
-                }
-            },
-            // Explicitly select only the fields we need
-            attributes: [
-                'programId', 'programName', 'degree', 'degreeLevel', 'category',
-                'schoolId', 'schoolName', 'language', 'semesters', 'fee',
-                'feeCurrency', 'location', 'schoolLogo', 'programImage',
-                'applicationFee', 'isActive'
-            ]
-        });
-
-        // Prepare response data with optimized structure
-        const responseData = {
-            programs: programs.map(program => ({
-                ...program.get({ plain: true }), // Convert to plain object
-                applicationDeadline: program.school?.applicationDeadline || null
-            })),
-            pagination: {
-                total: count,
-                totalPages: Math.ceil(count / pageSize),
-                currentPage: pageNumber,
-                limit: pageSize
+        // 3. Format the response
+        const pagination = getPaginationMetadata(
+            total,
+            parseInt(query.page, 10) || DEFAULT_PAGINATION.page,
+            parseInt(query.limit, 10) || DEFAULT_PAGINATION.limit
+        );
+        
+        // Format programs data for response
+        const formattedPrograms = programs.map(program => ({
+            programId: program.programId,
+            programName: program.programName,
+            degree: program.degree,
+            degreeLevel: program.degreeLevel,
+            category: program.category,
+            schoolId: program.schoolId,
+            schoolName: program.schoolName,
+            language: program.language,
+            semesters: program.semesters,
+            fee: program.fee,
+            feeCurrency: program.feeCurrency,
+            location: program.location,
+            schoolLogo: program.schoolLogo,
+            programImage: program.programImage,
+            applicationFee: program.applicationFee,
+            isActive: program.isActive,
+            School: program.School ? {
+                schoolId: program.School.schoolId,
+                schoolName: program.School.schoolName,
+                logo: program.School.logo,
+                applicationDeadline: program.School.applicationDeadline
+            } : null
+        }));
+        
+        const response = {
+            programs: formattedPrograms,
+            meta: {
+                ...pagination,
+                cache: 'MISS',
+                responseTime: `${Date.now() - startTime}ms`,
+                timestamp: new Date().toISOString()
             }
         };
-
-        // Cache the response with appropriate TTL
-        const cacheTTL = process.env.NODE_ENV === 'production' ? 
-            parseInt(process.env.REDIS_CACHE_EXPIRATION || 3600, 10) : // 1 hour in production
-            60; // 1 minute in development
+        
+        // 4. Cache the result asynchronously without blocking the response
+        setCache(cacheKey, response, cacheTTL)
+            .then(success => {
+                if (success) {
+                    console.log(`✅ Cached programs list (${formattedPrograms.length} items)`);
+                }
+            })
+            .catch(err => console.error('Error caching programs:', err));
             
-        await setCache(cacheKey, responseData, cacheTTL);
-
         return callback(
-            messageHandler(
-                programs.length ? "Programs retrieved successfully" : "No programs found",
-                true,
-                SUCCESS,
-                responseData
-            )
+            messageHandler("Programs retrieved successfully", true, SUCCESS, response)
         );
+        // The response is already prepared and returned above
+        // No additional code needed here
 
     } catch (error) {
         console.error('Get programs error:', error);
@@ -193,24 +332,41 @@ export const getAllProgramsService = async (query, callback) => {
     }
 };
 
-// Get Single Program Service with caching
+/**
+ * Get Single Program Service with optimized caching
+ */
 export const getProgramByIdService = async (programId, callback) => {
+    const startTime = Date.now();
+    const cacheKey = `program:${programId}`;
+    
     try {
-        // Try to get from cache first
-        const cacheKey = `program:${programId}`;
+        // 1. Try to get from cache first
         const cachedProgram = await getCache(cacheKey);
-        
         if (cachedProgram) {
+            const responseTime = Date.now() - startTime;
             return callback(
-                messageHandler("Program retrieved from cache", true, SUCCESS, cachedProgram)
+                messageHandler("Program retrieved from cache", true, SUCCESS, {
+                    ...cachedProgram,
+                    meta: {
+                        cache: 'HIT',
+                        responseTime: `${responseTime}ms`,
+                        timestamp: new Date().toISOString()
+                    }
+                })
             );
         }
 
+        // 2. If not in cache, fetch from database
         const program = await Program.findByPk(programId, {
             include: [{
                 model: School,
-                attributes: ['schoolId', 'schoolName', 'country', 'city', 'logo', 'website', 'email', 'phone', 'applicationDeadline', 'description']
-            }]
+                attributes: [
+                    'schoolId', 'schoolName', 'country', 'city', 'logo', 
+                    'website', 'email', 'phone', 'applicationDeadline', 'description'
+                ]
+            }],
+            raw: true,
+            nest: true
         });
 
         if (!program) {
@@ -219,12 +375,27 @@ export const getProgramByIdService = async (programId, callback) => {
             );
         }
 
-        // Cache the program with school details
-        const programData = program.toJSON();
-        await setCache(cacheKey, programData);
+        // 3. Prepare response with metadata
+        const response = {
+            ...program,
+            meta: {
+                cache: 'MISS',
+                responseTime: `${Date.now() - startTime}ms`,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        // 4. Cache the program asynchronously without blocking the response
+        setCache(cacheKey, response, CACHE_CONFIG.DETAILS)
+            .then(success => {
+                if (success) {
+                    console.log(`✅ Cached program details for ID: ${programId}`);
+                }
+            })
+            .catch(err => console.error('Error caching program:', err));
         
         return callback(
-            messageHandler("Program retrieved successfully", true, SUCCESS, programData)
+            messageHandler("Program retrieved successfully", true, SUCCESS, response)
         );
 
     } catch (error) {
@@ -235,49 +406,92 @@ export const getProgramByIdService = async (programId, callback) => {
     }
 };
 
-// Update Program Service
+/**
+ * Update Program Service with cache invalidation
+ */
 export const updateProgramService = async (programId, data, callback) => {
     const t = await Program.sequelize.transaction();
     
     try {
-        const program = await Program.findByPk(programId, { transaction: t });
+        // 1. Find the existing program
+        const program = await Program.findByPk(programId, { 
+            transaction: t,
+            raw: true,
+            nest: true
+        });
         
         if (!program) {
             await t.rollback();
-            return callback(messageHandler("Program not found", false, NOT_FOUND));
+            return callback(
+                messageHandler("Program not found", false, NOT_FOUND)
+            );
         }
 
-        // If schoolId is being updated, validate the new school
+        // 2. If schoolId is being updated, validate the new school
         if (data.schoolId && data.schoolId !== program.schoolId) {
-            const school = await School.findByPk(data.schoolId, { transaction: t });
+            const school = await School.findByPk(data.schoolId, { 
+                attributes: ['schoolName'],
+                transaction: t 
+            });
+            
             if (!school) {
                 await t.rollback();
-                return callback(messageHandler("School not found", false, NOT_FOUND));
+                return callback(
+                    messageHandler("School not found", false, NOT_FOUND)
+                );
             }
             // Update schoolName to match the new school
             data.schoolName = school.schoolName;
-            // Update logo if not explicitly set
-            if (!data.schoolLogo) {
-                data.schoolLogo = school.logo || null;
-            }
         }
 
-        // Update program
-        await program.update(data);
-        
-        // Clear ALL program-related caches
+        // 3. Update the program
+        const [updatedCount] = await Program.update(data, {
+            where: { programId },
+            transaction: t
+        });
+
+        if (updatedCount === 0) {
+            await t.rollback();
+            return callback(
+                messageHandler("Failed to update program", false, BAD_REQUEST)
+            );
+        }
+
+        // 4. Invalidate cache for this program and program lists
         await Promise.all([
-            clearCache(`program:${programId}`),  // Clear specific program
-            clearCache('programs:*'),            // Clear all program lists
-            clearCache('programs:search:*'),     // Clear all search results
-            clearCache('programs:filter:*')      // Clear all filter results
-        ]);
+            clearCache(`program:${programId}`),
+            clearCache('programs:*')
+        ]).catch(err => {
+            console.error('Cache invalidation error:', err);
+            // Don't fail the request if cache invalidation fails
+        });
+
+        // 5. Commit the transaction
+        await t.commit();
+
+        // 6. Get the updated program with all its relationships
+        const updatedProgram = await Program.findByPk(programId, {
+            include: [{
+                model: School,
+                attributes: [
+                    'schoolId', 'schoolName', 'country', 'city', 'logo', 
+                    'website', 'email', 'phone', 'applicationDeadline', 'description'
+                ]
+            }],
+            raw: true,
+            nest: true
+        });
+
+        // 7. Cache the updated program
+        setCache(`program:${programId}`, updatedProgram, CACHE_CONFIG.DETAILS)
+            .catch(err => console.error('Error caching updated program:', err));
 
         return callback(
-            messageHandler("Program updated successfully", true, SUCCESS, program)
+            messageHandler("Program updated successfully", true, SUCCESS, updatedProgram)
         );
 
     } catch (error) {
+        await t.rollback();
         console.error('Update program error:', error);
         return callback(
             messageHandler("An error occurred while updating program", false, BAD_REQUEST)
@@ -285,33 +499,60 @@ export const updateProgramService = async (programId, data, callback) => {
     }
 };
 
-// Delete Program Service
+/**
+ * Delete Program Service with cache invalidation
+ */
 export const deleteProgramService = async (programId, callback) => {
+    const t = await Program.sequelize.transaction();
+    
     try {
-        const program = await Program.findByPk(programId);
-
+        // 1. Find the program to delete
+        const program = await Program.findByPk(programId, { 
+            transaction: t,
+            raw: true
+        });
+        
         if (!program) {
+            await t.rollback();
             return callback(
                 messageHandler("Program not found", false, NOT_FOUND)
             );
         }
 
-        // Delete program
-        await program.destroy();
-        
-        // Clear ALL program-related caches
-        await Promise.all([
-            clearCache(`program:${programId}`),  // Clear specific program
-            clearCache('programs:*'),            // Clear all program lists
-            clearCache('programs:search:*'),     // Clear all search results
-            clearCache('programs:filter:*')      // Clear all filter results
-        ]);
+        // 2. Soft delete by setting isActive to false
+        const [updatedCount] = await Program.update(
+            { isActive: false },
+            { 
+                where: { programId },
+                transaction: t
+            }
+        );
 
+        if (updatedCount === 0) {
+            await t.rollback();
+            return callback(
+                messageHandler("Failed to delete program", false, BAD_REQUEST)
+            );
+        }
+
+        // 3. Invalidate cache for this program and program lists
+        await Promise.all([
+            clearCache(`program:${programId}`),
+            clearCache('programs:*')
+        ]).catch(err => {
+            console.error('Cache invalidation error:', err);
+            // Don't fail the request if cache invalidation fails
+        });
+
+        // 4. Commit the transaction
+        await t.commit();
+        
         return callback(
             messageHandler("Program deleted successfully", true, SUCCESS)
         );
 
     } catch (error) {
+        await t.rollback();
         console.error('Delete program error:', error);
         return callback(
             messageHandler("An error occurred while deleting program", false, BAD_REQUEST)
@@ -319,36 +560,106 @@ export const deleteProgramService = async (programId, callback) => {
     }
 };
 
-// Search Programs Service with caching
-export const searchProgramsService = async (query, callback) => {
+/**
+ * Search Programs Service with optimized caching and proper column names
+ */
+export const searchProgramsService = async (searchQuery, callback) => {
+    const startTime = Date.now();
+    
     try {
-        // Generate cache key for search
-        const cacheKey = `programs:search:${query}`;
-        
-        // Try to get from cache
-        const cachedResults = await getCache(cacheKey);
-        if (cachedResults) {
+        if (!searchQuery || searchQuery.trim() === '') {
             return callback(
-                messageHandler("Search results retrieved from cache", true, SUCCESS, cachedResults)
+                messageHandler("Search query is required", false, BAD_REQUEST)
             );
         }
 
-        const programs = await Program.findAll({
-            where: {
-                [Op.or]: [
-                    { programName: { [Op.like]: `%${query}%` } },
-                    { degree: { [Op.like]: `%${query}%` } },
-                    { schoolName: { [Op.like]: `%${query}%` } },
-                    { location: { [Op.like]: `%${query}%` } }
-                ]
+        // Generate cache key for search
+        const cacheKey = `programs:search:${searchQuery.toLowerCase().trim()}`;
+        
+        // 1. Try to get from cache first
+        const cachedResults = await getCache(cacheKey);
+        if (cachedResults) {
+            const responseTime = Date.now() - startTime;
+            return callback(
+                messageHandler("Search results from cache", true, SUCCESS, {
+                    ...cachedResults,
+                    meta: {
+                        ...cachedResults.meta,
+                        cache: 'HIT',
+                        responseTime: `${responseTime}ms`
+                    }
+                })
+            );
+        }
+
+        // 2. Build search conditions
+        const searchTerm = `%${searchQuery.trim()}%`;
+        const whereClause = {
+            [Op.and]: [
+                { isActive: true },
+                {
+                    [Op.or]: [
+                        { programName: { [Op.iLike]: searchTerm } },
+                        { degree: { [Op.iLike]: searchTerm } },
+                        { schoolName: { [Op.iLike]: searchTerm } },
+                        { location: { [Op.iLike]: searchTerm } },
+                        { '$school.schoolName$': { [Op.iLike]: searchTerm } },
+                        { '$school.country$': { [Op.iLike]: searchTerm } },
+                        { '$school.city$': { [Op.iLike]: searchTerm } }
+                    ]
+                }
+            ]
+        };
+
+        // 3. Execute search query
+        const [total, programs] = await Promise.all([
+            Program.count({
+                where: whereClause,
+                include: [{
+                    model: School,
+                    attributes: [],
+                    required: false
+                }],
+                distinct: true,
+                col: 'programId'
+            }),
+            
+            Program.findAll({
+                attributes: PROGRAM_ATTRIBUTES,
+                include: [{
+                    ...SCHOOL_INCLUDE,
+                    attributes: ['schoolId', 'schoolName', 'logo', 'applicationDeadline']
+                }],
+                where: whereClause,
+                order: [['programName', 'ASC']],
+                raw: true,
+                nest: true
+            })
+        ]);
+
+        // 4. Prepare response with metadata
+        const response = {
+            programs,
+            meta: {
+                totalItems: total,
+                cache: 'MISS',
+                searchQuery: searchQuery,
+                responseTime: `${Date.now() - startTime}ms`,
+                timestamp: new Date().toISOString()
             }
-        });
+        };
 
-        // Cache the search results
-        await setCache(cacheKey, programs);
-
+        // 5. Cache the results asynchronously
+        setCache(cacheKey, response, CACHE_CONFIG.SEARCH)
+            .then(success => {
+                if (success) {
+                    console.log(`✅ Cached search results for: ${searchQuery}`);
+                }
+            })
+            .catch(err => console.error('Error caching search results:', err));
+        
         return callback(
-            messageHandler("Search results retrieved successfully", true, SUCCESS, programs)
+            messageHandler("Search completed successfully", true, SUCCESS, response)
         );
 
     } catch (error) {

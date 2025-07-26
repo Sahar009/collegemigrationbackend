@@ -33,8 +33,7 @@ const AgentStudent = sequelize.define('AgentStudent', {
     email: {
         type: DataTypes.STRING(100),
         allowNull: false,
-        unique: true,
-        validate: {
+     validate: {
             isEmail: true
         }
     },
@@ -110,10 +109,6 @@ const AgentStudent = sequelize.define('AgentStudent', {
     tableName: 'agent_students',
     timestamps: false,
     indexes: [
-        {
-            unique: true,
-            fields: ['email']
-        }
     ]
 });
 
