@@ -12,7 +12,7 @@ import { cloudinary } from './config/cloudinaryConfig.js';
 
 
 const app = express()
-const port = process.env.PORT || 8000
+const port = process.env.PORT || 8088
 
 
 // middlewares
