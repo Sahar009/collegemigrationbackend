@@ -535,6 +535,76 @@ export const getAllAdmins = async (req, res) => {
     }
 };
 
+// In adminAuthController.js
+export const updateAdminRole = async (req, res) => {
+    try {
+        const { adminId } = req.params;
+        const { role } = req.body;
+        const currentAdmin = req.admin; // The admin making the request
+console.log(role, adminId)
+        // Check if the admin exists
+        const admin = await Admin.findByPk(adminId);
+        if (!admin) {
+            return res.status(404).json({
+                success: false,
+                message: "Admin not found",
+                statusCode: 404
+            });
+        }
+
+        // Prevent updating your own role
+        if (admin.id === currentAdmin.id) {
+            return res.status(400).json({
+                success: false,
+                message: "You cannot change your own role",
+                statusCode: 400
+            });
+        }
+
+        // Prevent changing super_admin role if not a super_admin
+        if (admin.role === 'super_admin' && currentAdmin.role !== 'super_admin') {
+            return res.status(403).json({
+                success: false,
+                message: "Only super admin can modify other super admins",
+                statusCode: 403
+            });
+        }
+
+        // Prevent non-super admins from assigning super_admin role
+        if (role === 'super_admin' && currentAdmin.role !== 'super_admin') {
+            return res.status(403).json({
+                success: false,
+                message: "Only super admin can assign super_admin role",
+                statusCode: 403
+            });
+        }
+
+        // Update the role
+        admin.role = role;
+        await admin.save();
+
+        const adminData = admin.get({ plain: true });
+        delete adminData.password;
+        delete adminData.resetToken;
+        delete adminData.resetTokenExpiry;
+
+        return res.status(200).json({
+            success: true,
+            message: "Admin role updated successfully",
+            statusCode: 200,
+            data: adminData
+        });
+
+    } catch (error) {
+        console.error('Update admin role error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to update admin role",
+            statusCode: 500
+        });
+    }
+};
+
 // Update admin status (super admin only)
 export const updateAdminStatus = async (req, res) => {
     try {

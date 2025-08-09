@@ -38,7 +38,7 @@ export const Member = sequelize.define('Member', {
         allowNull: true
     },
     dob: {
-        type: DataTypes.DATEONLY,
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     homeAddress: {

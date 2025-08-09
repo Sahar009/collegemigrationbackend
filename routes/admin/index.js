@@ -123,6 +123,12 @@ adminRouter.put('/admins/:adminId/status',
     asyncHandler(adminAuthController.updateAdminStatus)
 );
 
+adminRouter.put(
+    '/admins/:adminId/role',
+    requireRole(['super_admin']),  // Only super admin can change roles
+    asyncHandler(adminAuthController.updateAdminRole)
+);
+
 //dashboard routes
 adminRouter.get('/dashboard', asyncHandler(adminDashboardController.getDashboardMetrics));
 

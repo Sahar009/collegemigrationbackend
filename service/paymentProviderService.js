@@ -52,22 +52,51 @@ class PaymentProviderService {
 
     async initializePaystackPayment(paymentData) {
         try {
-            console.log('Initializing Paystack payment with:', paymentData);
+            console.log('Initializing Paystack payment with data:', JSON.stringify(paymentData, null, 2));
+            
+            // Validate required fields
+            if (!paymentData.email) {
+                throw new Error('Email is required in payment data');
+            }
+            if (!paymentData.amount) {
+                throw new Error('Amount is required');
+            }
+            if (!paymentData.reference) {
+                throw new Error('Reference is required');
+            }
+
+            const payload = {
+                email: paymentData.email,
+                amount: paymentData.amount,
+                reference: paymentData.reference,
+                currency: paymentData.currency || 'NGN',
+                callback_url: paymentData.callback_url,
+                metadata: paymentData.metadata,
+                channels: paymentData.channels || ['card', 'bank', 'ussd']
+            };
+
+            console.log('Sending to Paystack API:', JSON.stringify(payload, null, 2));
             
             const response = await axios.post(
                 'https://api.paystack.co/transaction/initialize',
-                paymentData,
+                payload,
                 {
                     headers: {
-                        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-                        'Content-Type': 'application/json'
-                    }
+                        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    },
+                    timeout: 30000 // 30 seconds timeout
                 }
             );
 
-            console.log('Paystack response:', response.data);
+            console.log('Paystack API response:', {
+                status: response.status,
+                statusText: response.statusText,
+                data: response.data
+            });
 
-            if (!response.data.status || !response.data.data.authorization_url) {
+            if (!response.data.status || !response.data.data?.authorization_url) {
                 throw new Error('Invalid response from Paystack');
             }
 

@@ -18,17 +18,63 @@ const initializeProviderPayment = async (provider, transaction) => {
     try {
         const paymentProvider = new PaymentProviderService(provider);
         
+        // Log the incoming transaction for debugging
+        console.log('Raw transaction data:', JSON.stringify(transaction, null, 2));
+        
+        // Ensure we have a valid email - check both root and metadata
+        const email = transaction.email || (transaction.metadata && transaction.metadata.email);
+        
+        if (!email) {
+            console.error('Email not found in transaction:', {
+                emailInRoot: !!transaction.email,
+                emailInMetadata: !!(transaction.metadata && transaction.metadata.email),
+                transactionKeys: Object.keys(transaction)
+            });
+            throw new Error('Email is required for payment initialization');
+        }
+
+        // Prepare custom fields
+        const customFields = [
+            ...(transaction.metadata?.custom_fields || []),
+            {
+                display_name: "Transaction Reference",
+                variable_name: "transaction_reference",
+                value: transaction.paymentReference
+            },
+            {
+                display_name: "Agent ID",
+                variable_name: "agent_id",
+                value: transaction.agentId?.toString() || ''
+            },
+            {
+                display_name: "Application ID",
+                variable_name: "application_id",
+                value: transaction.applicationId?.toString() || ''
+            },
+            {
+                display_name: "Member ID",
+                variable_name: "member_id",
+                value: transaction.memberId?.toString() || ''
+            }
+        ];
+
+        // Prepare payment data with all required fields
         const paymentData = {
-            email: transaction.metadata.email,
-            amount: Math.round(transaction.amount * 100),
-            currency: transaction.currency,
+            email: email,
+            amount: Math.round(transaction.amount * 100), // Convert to kobo (smallest currency unit)
+            currency: transaction.currency || 'NGN',
             reference: transaction.paymentReference,
             callback_url: process.env.FRONTEND_URL + "/agent/payment/verify",
             metadata: {
-                custom_fields: transaction.metadata.custom_fields
+                ...transaction.metadata,
+                email: email, // Ensure email is in metadata as well
+                custom_fields: customFields
             },
-            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
+            channels: ['card', 'bank', 'ussd'], // Reduced to essential channels for better compatibility
+            custom_fields: customFields // Some Paystack versions expect this at root level too
         };
+
+        console.log('Payment data being sent to Paystack:', JSON.stringify(paymentData, null, 2));
 
         console.log('Payment provider data:', paymentData);
 
@@ -129,6 +175,7 @@ export const initiateAgentPayment = async (agentId, data) => {
             applicationId: data.applicationId,
             memberId: data.memberId,
             agentId: data.agentId,
+            email: data.email || data.metadata.email, 
             amount: parseFloat(data.amount),
             currency: (data.currency || 'NGN').toUpperCase(),
             amountInUSD: parseFloat(data.amount),
@@ -137,7 +184,7 @@ export const initiateAgentPayment = async (agentId, data) => {
             status: 'pending',
             paymentReference: generateReference(),
             metadata: {
-                email: data.metadata.email,
+                email: data.email || data.metadata.email,  
                 custom_fields: [
                     {
                         display_name: "Application ID",

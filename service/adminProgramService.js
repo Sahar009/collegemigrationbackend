@@ -6,6 +6,7 @@ import { Op } from 'sequelize';
 import fs from 'fs';
 import csv from 'csv-parser';
 import path from 'path';
+import { generateProgramsCacheKey, getCache, setCache } from '../utils/cache.js';
 
 // Get all programs with filtering and pagination
 export const getAllProgramsService = async (query) => {
@@ -17,10 +18,30 @@ export const getAllProgramsService = async (query) => {
       schoolId,
       degree,
       status,
+      category,
       sortBy = 'createdAt',
       sortOrder = 'DESC'
     } = query;
     
+    // Generate a unique cache key based on the query parameters
+    const cacheKey = generateProgramsCacheKey({
+      ...query,
+      status, // Include status in cache key
+      sortBy,
+      sortOrder
+    });
+
+    // Try to get data from cache first
+    const cachedData = await getCache(cacheKey);
+    if (cachedData) {
+      return messageHandler(
+        'Programs retrieved from cache successfully',
+        true,
+        200,
+        cachedData
+      );
+    }
+
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     // Build filter conditions
@@ -44,6 +65,10 @@ export const getAllProgramsService = async (query) => {
     if (status) {
       whereConditions.isActive = status === 'active';
     }
+
+    if (category) {
+      whereConditions.category = category;
+    }
     
     const { count, rows: programs } = await Program.findAndCountAll({
       where: whereConditions,
@@ -57,20 +82,25 @@ export const getAllProgramsService = async (query) => {
       offset,
       order: [[sortBy, sortOrder]]
     });
+
+    const responseData = {
+      programs,
+      pagination: {
+        totalItems: count,
+        totalPages: Math.ceil(count / parseInt(limit)),
+        currentPage: parseInt(page),
+        pageSize: parseInt(limit)
+      }
+    };
     
+    // Cache the response before returning
+    await setCache(cacheKey, responseData);
+
     return messageHandler(
       'Programs retrieved successfully',
       true,
       200,
-      {
-        programs,
-        pagination: {
-          totalItems: count,
-          totalPages: Math.ceil(count / parseInt(limit)),
-          currentPage: parseInt(page),
-          pageSize: parseInt(limit)
-        }
-      }
+      responseData
     );
   } catch (error) {
     console.error('Get all programs error:', error);
@@ -81,7 +111,6 @@ export const getAllProgramsService = async (query) => {
     );
   }
 };
-
 // Get program by ID
 export const getProgramByIdService = async (programId) => {
   try {

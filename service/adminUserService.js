@@ -518,76 +518,96 @@ export const resetUserPasswordService = async (userId, userType, newPassword) =>
 // Add this new service function
 export const updateUserDetailsService = async (userId, userType, updateData) => {
     try {
-        // Remove password-related fields from update data
-        delete updateData.password;
-        delete updateData.confirmPassword;
-        delete updateData.newPassword;
-        delete updateData.currentPassword;
+        // Input validation
+        if (!userId || !userType) {
+            return messageHandler('User ID and type are required', false, 400);
+        }
+
+        // Remove sensitive fields that shouldn't be updated this way
+        const { 
+            password, 
+            confirmPassword, 
+            newPassword, 
+            currentPassword, 
+            resetCode,
+            resetCodeExpiry,
+            regDate,
+            referralCode,
+            ...safeUpdateData 
+        } = updateData;
 
         let user;
-        
-        if (userType === 'member') {
-            user = await Member.findByPk(userId);
-            if (!user) {
-                return messageHandler('Member not found', false, 404);
-            }
-            
-            // Filter allowed fields for member updates
-            const allowedFields = [
-                'firstname', 'lastname', 'email', 'phone', 
-                'address', 'country', 'dateOfBirth', 'memberStatus'
-            ];
-            
-            const filteredUpdate = Object.keys(updateData)
-                .filter(key => allowedFields.includes(key))
-                .reduce((obj, key) => {
-                    obj[key] = updateData[key];
-                    return obj;
-                }, {});
+        const userModel = userType === 'member' ? Member : Agent;
+        const idField = userType === 'member' ? 'memberId' : 'agentId';
 
-            await user.update(filteredUpdate);
-            
-        } else if (userType === 'agent') {
-            user = await Agent.findByPk(userId);
-            if (!user) {
-                return messageHandler('Agent not found', false, 404);
-            }
-            
-            // Filter allowed fields for agent updates
-            const allowedFields = [
-                'companyName', 'contactPerson', 'email', 'phone',
-                'address', 'country', 'commissionRate', 'status'
-            ];
-            
-            const filteredUpdate = Object.keys(updateData)
-                .filter(key => allowedFields.includes(key))
-                .reduce((obj, key) => {
-                    obj[key] = updateData[key];
-                    return obj;
-                }, {});
-
-            await user.update(filteredUpdate);
-            
-        } else {
-            return messageHandler('Invalid user type', false, 400);
+        // Find user
+        user = await userModel.findByPk(userId);
+        if (!user) {
+            return messageHandler(`${userType.charAt(0).toUpperCase() + userType.slice(1)} not found`, false, 404);
         }
+
+        // Check for unique fields
+        const uniqueFields = ['email', 'phone', 'idNumber'].filter(field => safeUpdateData[field]);
+        
+        for (const field of uniqueFields) {
+            if (safeUpdateData[field] !== user[field]) {
+                const exists = await userModel.findOne({ 
+                    where: { 
+                        [field]: safeUpdateData[field],
+                        [idField]: { [Op.ne]: userId }
+                    } 
+                });
+                if (exists) {
+                    return messageHandler(`${field.charAt(0).toUpperCase() + field.slice(1)} already in use`, false, 400);
+                }
+            }
+        }
+
+        // Only proceed if there are valid fields to update
+        if (Object.keys(safeUpdateData).length === 0) {
+            return messageHandler('No valid fields to update', false, 400);
+        }
+
+        // Log the update for audit purposes
+        console.log(`Updating ${userType} ${userId} with:`, safeUpdateData);
+
+        // Perform the update
+        await user.update(safeUpdateData);
+
+        // Refresh the user data to get the latest values
+        const updatedUser = await userModel.findByPk(userId, {
+            attributes: {
+                exclude: ['password', 'resetCode', 'resetCodeExpiry']
+            }
+        });
 
         return messageHandler(
             'User details updated successfully',
             true,
             200,
-            user
+            updatedUser
         );
+
     } catch (error) {
         console.error('Update user details error:', error);
+        
+        // Handle specific error types
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            const field = error.fields && error.fields[0];
+            return messageHandler(
+                `A user with this ${field || 'unique field'} already exists`,
+                false,
+                400
+            );
+        }
+        
         return messageHandler(
             error.message || 'Failed to update user details',
             false,
             500
         );
     }
-}; 
-
+};
 // Update user document
 export const updateUserDocumentService = async (documentId, documentType, updateData, adminId) => {
     try {

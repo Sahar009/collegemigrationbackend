@@ -1649,15 +1649,15 @@ export const initiateAdminApplicationService = async (memberId, programData, cal
     try {
         // Verify profile completion
         const isProfileComplete = await verifyMemberProfile(memberId);
-        if (!isProfileComplete) {
-            return callback(messageHandler(
-                "Please complete your profile before applying", 
-                false, 
-                400
-            ));
-        }
+        // if (!isProfileComplete) {
+        //     return callback(messageHandler(
+        //         "Please complete your profile before applying", 
+        //         false, 
+        //         400
+        //     ));
+        // }
 
-        // Check if document validation is required from config
+        // Check if document validation is required from configa
         const requireDocValidation = await getConfig('admin_application_document');
         if (requireDocValidation.data.admin_application_document) {
             const { isComplete, missingDocs } = await checkRequiredDocuments(memberId, programData.programCategory);
