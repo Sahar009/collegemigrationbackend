@@ -326,13 +326,22 @@ export const forgotPassword = async (req, res) => {
         });
         
         // Send email with reset link
-        const resetLink = `${process.env.FRONTEND_URL}/admin/reset-password?token=${resetToken}`;
-        console.log(resetLink)
+        const resetLink = `https://www.admin.collegemigration.com/admin/reset-password?token=${resetToken}`;
+        console.log(resetLink);
+        
+        // Prepare email context
+        const emailContext = {
+            resetLink: resetLink,
+            name: admin.name || 'there',
+            expiryTime: '1 hour'
+        };
+        
+        // Send email using template
         await sendEmail({
             to: admin.email,
             subject: 'Password Reset Request',
-            text: `You requested a password reset. Please use the following link to reset your password: ${resetLink}`,
-            html: `<p>You requested a password reset.</p><p>Please use the following link to reset your password:</p><p><a href="${resetLink}">Reset Password</a></p><p>This link will expire in 1 hour.</p>`
+            template: 'passwordReset', 
+            context: emailContext
         });
         
         return res.status(SUCCESS).json(

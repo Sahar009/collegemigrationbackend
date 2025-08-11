@@ -12,7 +12,7 @@ import { generateReference } from '../utils/reference.js';
 import { Agent } from '../schema/AgentSchema.js';
 
 
-const baseUrl = process.env.FRONTEND_URL || "https://collegemigrationmain.vercel.app/";
+const baseUrl = process.env.FRONTEND_URL || "https://collegemigration.com/";
 
 export const registerMemberWithReferral = async (data) => {
     try {
