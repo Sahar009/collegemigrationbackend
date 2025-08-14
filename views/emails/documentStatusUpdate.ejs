@@ -69,16 +69,28 @@
                 
                 <p style="color: #000000; font-size: 14px; margin: 0 0 8px">
                     <strong>Status:</strong> 
+                    <% 
+                    let statusBgColor = '#f8f9fa';
+                    let statusTextColor = '#000000';
+                    
+                    if (status && status.toLowerCase() === 'pending') {
+                        statusBgColor = '#ffc107';
+                        statusTextColor = '#212529';
+                    } else if (status && status.toLowerCase() === 'approved') {
+                        statusBgColor = '#28a745';
+                        statusTextColor = '#ffffff';
+                    } else if (status && status.toLowerCase() === 'rejected') {
+                        statusBgColor = '#dc3545';
+                        statusTextColor = '#ffffff';
+                    }
+                    %>
                     <span style="
                         display: inline-block;
                         padding: 4px 12px;
                         border-radius: 20px;
                         font-weight: bold;
-                        background-color: 
-                            <%= status.toLowerCase() === 'pending' ? '#ffc107' : 
-                               status.toLowerCase() === 'approved' ? '#28a745' : 
-                               status.toLowerCase() === 'rejected' ? '#dc3545' : '#f8f9fa' %>;
-                        color: <%= status.toLowerCase() === 'pending' ? '#212529' : '#ffffff' %>;
+                        background-color: <%= statusBgColor %>;
+                        color: <%= statusTextColor %>;
                     ">
                         <%= status %>
                     </span>
@@ -165,21 +177,21 @@
 
             <!-- Social Icons -->
             <div style="margin: 0 0 29px">
-                <a href="<%= socialLinks?.Facebook || '#' %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                <a href="<%= (socialLinks && socialLinks.Facebook) ? socialLinks.Facebook : '#' %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
                     <img
                         src="https://cdn-icons-png.flaticon.com/256/20/20673.png"
                         style="width: 24px; height: 24px;"
                         alt="Facebook"
                     />
                 </a>
-                <a href="<%= socialLinks?.Twitter || '#' %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                <a href="<%= (socialLinks && socialLinks.Twitter) ? socialLinks.Twitter : '#' %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
                     <img
                         src="https://cdn-icons-png.freepik.com/256/3938/3938028.png?semt=ais_hybrid"
                         style="width: 24px; height: 24px;"
                         alt="Twitter"
                     />
                 </a>
-                <a href="<%= socialLinks?.LinkedIn || '#' %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
+                <a href="<%= (socialLinks && socialLinks.LinkedIn) ? socialLinks.LinkedIn : '#' %>" target="_blank" style="text-decoration: none; margin: 0 8px;">
                     <img
                         src="https://cdn-icons-png.flaticon.com/512/174/174857.png"
                         style="width: 24px; height: 24px;"

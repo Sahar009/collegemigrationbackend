@@ -222,15 +222,15 @@ export const forgotPassword = async (email) => {
             resetCodeExpiry: otpExpiry
         });
 
-        // Send OTP email using resetPassword.ejs template
+        // Send OTP email using agentResetPassword.ejs template
         await sendEmail({
             to: email,
-            subject: 'Password Reset Code - College Migration',
-            template: 'resetPassword',
+            subject: 'Agent Password Reset Code - College Migration',
+            template: 'agentResetPassword',
             context: {
                 name: agent.contactPerson,
+                email: email,
                 resetCode: otp,
-                year: new Date().getFullYear(),
                 socialLinks: {
                     Facebook: 'https://facebook.com/collegemigration',
                     Twitter: 'https://twitter.com/collegemigration',
