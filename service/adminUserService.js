@@ -988,6 +988,7 @@ export const exportUserDetailsToExcel = async (userType, userIds) => {
 
             const studentIds = students.map(student => student.memberId);
 
+            // Get all agent applications with program details
             const agentApplications = await AgentApplication.findAll({
                 where: { memberId: studentIds },
                 include: [{
@@ -1114,7 +1115,7 @@ if (userType === 'member') {
             user.documents?.forEach(doc => {
                 // Construct document URL - adjust the path as per your storage structure
                 const docUrl = doc.documentPath 
-                    ? `${process.env.BACKEND_URL || 'http://localhost:3000'}/uploads/${doc.documentPath}`
+                    ? doc.documentPath
                     : 'N/A';
                 
                 docSheet.addRow([
@@ -1200,7 +1201,7 @@ if (userType === 'member') {
             user.documents?.forEach(doc => {
                 // Construct document URL - adjust the path as per your storage structure
                 const docUrl = doc.documentPath 
-                    ? `${process.env.BACKEND_URL || 'http://localhost:3000'}/uploads/${doc.documentPath}`
+                    ? doc.documentPath
                     : 'N/A';
                 
                 docSheet.addRow([
