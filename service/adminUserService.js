@@ -904,124 +904,122 @@ return student?.agentId;
  * @returns {Promise<Object>} - Returns buffer and filename
  */
 export const exportUserDetailsToExcel = async (userType, userIds) => {
-try {
-let users = [];
-let filename = '';
+    try {
+        let users = [];
+        let filename = '';
         
-if (userType === 'member') {
-// Get member details
-// First get the members with their applications
-const members = await Member.findAll({
-    where: { memberId: userIds },
-    include: [
-        {
-            model: Application,
-            as: 'memberApplications',
-            include: [{
-                model: Program,
-                as: 'program'
-            }]
-        }
-    ]
-});
+        if (userType === 'member') {
+            // Get all member details with applications and program info
+            const members = await Member.findAll({
+                where: { memberId: userIds },
+                include: [
+                    {
+                        model: Application,
+                        as: 'memberApplications',
+                        include: [{
+                            model: Program,
+                            as: 'program'
+                        }]
+                    }
+                ]
+            });
 
-const memberIds = members.map(member => member.memberId);
+            const memberIds = members.map(member => member.memberId);
 
-// Get all application documents and wallets for these members
-const [applicationDocuments, wallets] = await Promise.all([
-    ApplicationDocument.findAll({
-        where: { memberId: memberIds }
-    }),
-    Wallet.findAll({
-        where: { 
-            userId: memberIds,
-            userType: 'member'  // Ensure we only get member wallets
-        }
-    })
-]);
+            // Get all related data in parallel
+            const [applicationDocuments, wallets] = await Promise.all([
+                ApplicationDocument.findAll({
+                    where: { memberId: memberIds }
+                }),
+                Wallet.findAll({
+                    where: { 
+                        userId: memberIds,
+                        userType: 'member'
+                    }
+                })
+            ]);
 
-// Group documents by memberId
-const documentsByMember = applicationDocuments.reduce((acc, doc) => {
-    if (!acc[doc.memberId]) {
-        acc[doc.memberId] = [];
-    }
-    acc[doc.memberId].push(doc);
-    return acc;
-}, {});
+            // Group documents by memberId
+            const documentsByMember = applicationDocuments.reduce((acc, doc) => {
+                if (!acc[doc.memberId]) acc[doc.memberId] = [];
+                acc[doc.memberId].push(doc);
+                return acc;
+            }, {});
 
-// Group wallets by userId
-const walletByMember = wallets.reduce((acc, wallet) => {
-    acc[wallet.userId] = wallet;
-    return acc;
-}, {});
+            // Group wallets by userId
+            const walletByMember = wallets.reduce((acc, wallet) => {
+                acc[wallet.userId] = wallet;
+                return acc;
+            }, {});
 
-// Add documents and wallet to the corresponding members
-members.forEach(member => {
-    member.dataValues.applicationDocuments = documentsByMember[member.memberId] || [];
-    member.dataValues.wallet = walletByMember[member.memberId] || null;
-});
+            // Combine all data
+            users = members.map(member => {
+                const memberData = member.get({ plain: true });
+                const memberDocs = documentsByMember[member.memberId] || [];
+                const memberWallet = walletByMember[member.memberId] || null;
+                
+                return {
+                    type: 'Member',
+                    ...memberData,
+                    applications: memberData.memberApplications || [],
+                    documents: memberDocs,
+                    wallet: memberWallet
+                };
+            });
             
-users = members.map(member => {
-const memberData = member.get({ plain: true });
-return {
-type: 'Member',
-...memberData,
-applications: memberData.applications,
-documents: memberData.documents,
-wallet: memberData.wallet
-};
-});
+            filename = `members_export_${new Date().toISOString().split('T')[0]}.xlsx`;
             
-filename = `members_export_${new Date().toISOString().split('T')[0]}.xlsx`;
-            
-} else if (userType === 'agent-student') {
-// Get agent student details without applications first
-const students = await AgentStudent.findAll({
-    where: { memberId: userIds },
-    include: [
-        {
-            model: Agent,
-            as: 'agent'
-        },
-        {
-            model: AgentStudentDocument,
-            as: 'documents'
-        }
-    ]
-});
+        } else if (userType === 'agent-student') {
+            // Get all agent student details with agent and documents
+            const students = await AgentStudent.findAll({
+                where: { memberId: userIds },
+                include: [
 
-// Get all agent applications for these students
-const studentIds = students.map(student => student.memberId);
-const agentApplications = await AgentApplication.findAll({
-    where: { memberId: studentIds },
-    include: [{
-        model: Program,
-        as: 'program'
-    }]
-});
+                    {
+                        model: AgentStudentDocument,
+                        as: 'documents'
+                    }
+                ]
+            });
 
-// Group applications by memberId
-const applicationsByStudent = agentApplications.reduce((acc, app) => {
-    if (!acc[app.memberId]) {
-        acc[app.memberId] = [];
-    }
-    acc[app.memberId].push(app);
-    return acc;
-}, {});
+            if (students.length === 0) {
+                return messageHandler('No agent students found', false, 404);
+            }
+
+            const studentIds = students.map(student => student.memberId);
+
+            const agentApplications = await AgentApplication.findAll({
+                where: { memberId: studentIds },
+                include: [{
+                    model: Program,
+                    as: 'program',
+                    attributes: ['programId', 'programName', 'schoolName', 'degree',"applicationFee" ]
+                }],
+                order: [['createdAt', 'DESC']]
+            });
+
+            // Group applications by memberId
+            const applicationsByStudent = agentApplications.reduce((acc, app) => {
+                if (!acc[app.memberId]) acc[app.memberId] = [];
+                acc[app.memberId].push(app);
+                return acc;
+            }, {});
             
-// Combine the data
-users = students.map(student => {
-    const studentData = student.get({ plain: true });
-    return {
-        type: 'Agent Student',
-        ...studentData,
-        agent: studentData.agent,
-        documents: studentData.documents || [],
-        applications: applicationsByStudent[student.memberId] || []
-    };
-});
+            // Combine all data
+            users = students.map(student => {
+                const studentData = student.get({ plain: true });
+                const studentApps = applicationsByStudent[student.memberId] || [];
+                
+                return {
+                    type: 'Agent Student',
+                    ...studentData,
+                    agent: studentData.agent,
+                    documents: studentData.documents || [],
+                    applications: studentApps
+                };
+            });
             
-filename = `agent_students_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+            filename = `agent_students_export_${new Date().toISOString().split('T')[0]}.xlsx`;
             
 } else {
 return messageHandler('Invalid user type', false, 400);
@@ -1029,126 +1027,197 @@ return messageHandler('Invalid user type', false, 400);
         
 // Create Excel workbook
 const workbook = new ExcelJS.Workbook();
-const worksheet = workbook.addWorksheet('User Details');
-        
-// Add headers based on user type
-if (userType === 'member') {
-// Member headers
-worksheet.addRow([
-'User Type', 'Member ID', 'Full Name', 'Email', 'Phone', 'Nationality',
-'Status', 'Registration Date', 'Wallet Balance', 'Total Applications'
-]);
-            
-// Add member data
-users.forEach(user => {
-worksheet.addRow([
-user.type,
-user.memberId,
-`${user.firstname} ${user.lastname}`,
-user.email,
-user.phone,
-user.nationality,
-user.memberStatus,
-new Date(user.regDate).toLocaleDateString(),
-user.wallet ? user.wallet.balance : 'N/A',
-user.applications?.length || 0
-]);
-});
-            
-// Add applications sheet if there are any
-if (users.some(u => u.applications?.length > 0)) {
-const appWorksheet = workbook.addWorksheet('Applications');
-appWorksheet.addRow([
-'Member ID', 'Member Name', 'Application ID', 'Program', 'School',
-'Degree', 'Status', 'Applied Date'
-]);
-                
-users.forEach(user => {
-user.applications?.forEach(app => {
-appWorksheet.addRow([
-user.memberId,
-`${user.firstname} ${user.lastname}`,
-app.applicationId,
-app.program?.programName || 'N/A',
-app.program?.schoolName || 'N/A',
-app.program?.degree || 'N/A',
-app.applicationStatus,
-new Date(app.createdAt).toLocaleDateString()
-]);
-});
-});
-}
-            
-} else if (userType === 'agent-student') {
-// Agent Student headers
-worksheet.addRow([
-'User Type', 'Student ID', 'Full Name', 'Email', 'Phone', 'Nationality',
-'Status', 'Registration Date', 'Agent Name', 'Agent Email', 'Total Applications'
-]);
-            
-// Add agent student data
-users.forEach(user => {
-worksheet.addRow([
-user.type,
-user.memberId,
-`${user.firstname} ${user.lastname}`,
-user.email,
-user.phone,
-user.nationality,
-user.memberStatus,
-new Date(user.regDate).toLocaleDateString(),
-user.agent ? `${user.agent.firstname} ${user.agent.lastname}` : 'N/A',
-user.agent?.email || 'N/A',
-user.applications?.length || 0
-]);
-});
-            
-// Add applications sheet if there are any
-if (users.some(u => u.applications?.length > 0)) {
-const appWorksheet = workbook.addWorksheet('Applications');
-appWorksheet.addRow([
-'Student ID', 'Student Name', 'Application ID', 'Program', 'School',
-'Degree', 'Status', 'Applied Date', 'Agent Name'
-]);
-                
-users.forEach(user => {
-user.applications?.forEach(app => {
-appWorksheet.addRow([
-user.memberId,
-`${user.firstname} ${user.lastname}`,
-app.applicationId,
-app.program?.programName || 'N/A',
-app.program?.schoolName || 'N/A',
-app.program?.degree || 'N/A',
-app.applicationStatus,
-new Date(app.createdAt).toLocaleDateString(),
-user.agent ? `${user.agent.firstname} ${user.agent.lastname}` : 'N/A'
-]);
-});
-});
-}
-}
-        
-// Style the header row
-const headerRow = worksheet.getRow(1);
-headerRow.font = { bold: true };
-headerRow.fill = {
-type: 'pattern',
-pattern: 'solid',
-fgColor: { argb: 'FFD3D3D3' }
+
+// Helper function to style header row
+const styleHeaderRow = (worksheet) => {
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFD3D3D3' }
+    };
+    
+    // Auto-fit columns
+    worksheet.columns.forEach(column => {
+        let maxLength = 0;
+        column.eachCell({ includeEmpty: true }, cell => {
+            const columnLength = cell.value ? cell.value.toString().length : 0;
+            if (columnLength > maxLength) maxLength = columnLength;
+        });
+        column.width = Math.min(Math.max(maxLength + 2, 10), 50);
+    });
 };
-        
-// Auto-fit columns
-worksheet.columns.forEach(column => {
-let maxLength = 0;
-column.eachCell({ includeEmpty: true }, cell => {
-const columnLength = cell.value ? cell.value.toString().length : 0;
-if (columnLength > maxLength) {
-maxLength = columnLength;
+
+if (userType === 'member') {
+    // 1. Member Details Sheet
+    const memberSheet = workbook.addWorksheet('Member Details');
+    memberSheet.addRow([
+        'Member ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Nationality',
+        'Status', 'Registration Date', 'Wallet Balance', 'Total Applications', 'Total Documents'
+    ]);
+
+    // Add member data
+    users.forEach(user => {
+        memberSheet.addRow([
+            user.memberId,
+            user.firstname,
+            user.lastname,
+            user.email,
+            user.phone,
+            user.nationality,
+            user.memberStatus,
+            new Date(user.regDate).toLocaleDateString(),
+            user.wallet ? user.wallet.balance : '0.00',
+            user.applications?.length || 0,
+            user.documents?.length || 0
+        ]);
+    });
+    styleHeaderRow(memberSheet);
+
+    // 2. Applications Sheet
+    if (users.some(u => u.applications?.length > 0)) {
+        const appSheet = workbook.addWorksheet('Applications');
+        appSheet.addRow([
+            'Application ID', 'Member ID', 'Member Name', 'Program', 'School',
+            'Degree', 'Status', 'Payment Status', 'Applied Date', 'Intake'
+        ]);
+
+        users.forEach(user => {
+            user.applications?.forEach(app => {
+                appSheet.addRow([
+                    app.applicationId,
+                    user.memberId,
+                    `${user.firstname} ${user.lastname}`,
+                    app.program?.programName || 'N/A',
+                    app.program?.schoolName || 'N/A',
+                    app.program?.degree || 'N/A',
+                    app.applicationStatus,
+                    app.paymentStatus || 'N/A',
+                    new Date(app.createdAt).toLocaleDateString(),
+                    app.intake || 'N/A'
+                ]);
+            });
+        });
+        styleHeaderRow(appSheet);
+    }
+    
+    // 3. Documents Sheet
+    if (users.some(u => u.documents?.length > 0)) {
+        const docSheet = workbook.addWorksheet('Documents');
+        docSheet.addRow([
+            'Document ID', 'Member ID', 'Member Name', 'Document Type',
+            'Status', 'Document URL', 'Upload Date', 'Notes'
+        ]);
+
+        users.forEach(user => {
+            user.documents?.forEach(doc => {
+                // Construct document URL - adjust the path as per your storage structure
+                const docUrl = doc.documentPath 
+                    ? `${process.env.BACKEND_URL || 'http://localhost:3000'}/uploads/${doc.documentPath}`
+                    : 'N/A';
+                
+                docSheet.addRow([
+                    doc.documentId,
+                    user.memberId,
+                    `${user.firstname} ${user.lastname}`,
+                    doc.documentType || 'N/A',
+                    doc.status || 'N/A',
+                    { text: 'View Document', hyperlink: docUrl },
+                    new Date(doc.createdAt).toLocaleDateString(),
+                    doc.notes || 'N/A'
+                ]);
+            });
+        });
+        styleHeaderRow(docSheet);
+    }
+    
+} else if (userType === 'agent-student') {
+    // 1. Student Details Sheet
+    const studentSheet = workbook.addWorksheet('Student Details');
+    studentSheet.addRow([
+        'Student ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Nationality',
+        'Status', 'Registration Date', 'Agent Name', 'Agent Email',
+        'Total Applications', 'Total Documents'
+    ]);
+
+    // Add student data
+    users.forEach(user => {
+        studentSheet.addRow([
+            user.memberId,
+            user.firstname,
+            user.lastname,
+            user.email,
+            user.phone,
+            user.nationality,
+            user.memberStatus,
+            new Date(user.regDate).toLocaleDateString(),
+            user.agent ? `${user.agent.firstname} ${user.agent.lastname}` : 'N/A',
+            user.agent?.email || 'N/A',
+            user.applications?.length || 0,
+            user.documents?.length || 0
+        ]);
+    });
+    styleHeaderRow(studentSheet);
+
+    // 2. Agent Applications Sheet
+    if (users.some(u => u.applications?.length > 0)) {
+        const appSheet = workbook.addWorksheet('Applications');
+        appSheet.addRow([
+            'Application ID', 'Student ID', 'Student Name', 'Program', 'School',
+            'Degree', 'Status', 'Stage', 'Payment Status', 'Applied Date', 'Intake'
+        ]);
+
+        users.forEach(user => {
+            user.applications?.forEach(app => {
+                appSheet.addRow([
+                    app.applicationId,
+                    user.memberId,
+                    `${user.firstname} ${user.lastname}`,
+                    app.program?.programName || 'N/A',
+                    app.program?.schoolName || 'N/A',
+                    app.program?.degree || 'N/A',
+                    app.applicationStatus,
+                    app.applicationStage || 'N/A',
+                    app.paymentStatus || 'N/A',
+                    new Date(app.createdAt).toLocaleDateString(),
+                    app.intake || 'N/A'
+                ]);
+            });
+        });
+        styleHeaderRow(appSheet);
+    }
+    
+    // 3. Student Documents Sheet
+    if (users.some(u => u.documents?.length > 0)) {
+        const docSheet = workbook.addWorksheet('Documents');
+        docSheet.addRow([
+            'Document ID', 'Student ID', 'Student Name', 'Document Type',
+            'Status', 'Document URL', 'Upload Date', 'Agent Name'
+        ]);
+
+        users.forEach(user => {
+            user.documents?.forEach(doc => {
+                // Construct document URL - adjust the path as per your storage structure
+                const docUrl = doc.documentPath 
+                    ? `${process.env.BACKEND_URL || 'http://localhost:3000'}/uploads/${doc.documentPath}`
+                    : 'N/A';
+                
+                docSheet.addRow([
+                    doc.documentId || 'N/A',
+                    user.memberId,
+                    `${user.firstname} ${user.lastname}`,
+                    doc.documentType || 'N/A',
+                    doc.status || 'N/A',
+                    { text: 'View Document', hyperlink: docUrl },
+                    new Date(doc.createdAt).toLocaleDateString(),
+                    user.agent ? `${user.agent.firstname} ${user.agent.lastname}` : 'N/A'
+                ]);
+            });
+        });
+        styleHeaderRow(docSheet);
+    }
 }
-});
-column.width = Math.min(Math.max(maxLength + 2, 10), 50);
-});
         
 // Generate buffer
 const buffer = await workbook.xlsx.writeBuffer();
