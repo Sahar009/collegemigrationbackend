@@ -69,6 +69,10 @@ adminRouter.put('/users/:userType/:userId/reset-password',
     validateResetUserPassword,
     asyncHandler(adminUserController.resetUserPassword)
 );
+adminRouter.post('/users/export', 
+    requireRole(['super_admin', 'admin']),
+    asyncHandler(adminUserController.exportUserDetails)
+);
 
 // Application management routes
 adminRouter.get('/applications', validateGetApplications, asyncHandler(adminApplicationController.getAllApplications));

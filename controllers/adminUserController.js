@@ -1,6 +1,7 @@
 import * as adminUserService from '../service/adminUserService.js';
 import { messageHandler } from '../utils/index.js';
 import { BAD_REQUEST } from '../constants/statusCode.js';
+import { exportUserDetailsToExcel } from '../service/adminUserService.js';
 
 // Get all users
 export const getAllUsers = async (req, res) => {
@@ -294,6 +295,73 @@ export const uploadUserDocuments = async (req, res) => {
         console.error('Controller error:', error);
         return res.status(500).json(
             messageHandler("Internal server error", false, 500)
+        );
+    }
+};
+
+/**
+ * Export user details to Excel
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+export const exportUserDetails = async (req, res) => {
+    try {
+        const { userType } = req.body;
+        let { userIds } = req.body;
+
+        // Validate input
+        if (!userType || !userIds) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler(
+                    'User type and user IDs are required',
+                    false,
+                    BAD_REQUEST
+                )
+            );
+        }
+
+        // Convert single ID to array if needed
+        if (!Array.isArray(userIds)) {
+            userIds = [userIds];
+        }
+
+        if (userIds.length === 0) {
+            return res.status(BAD_REQUEST).json(
+                messageHandler(
+                    'At least one user ID is required',
+                    false,
+                    BAD_REQUEST
+                )
+            );
+        }
+
+        // Call the service to generate Excel
+        const result = await exportUserDetailsToExcel(userType, userIds);
+
+        if (!result.success) {
+            return res.status(result.statusCode || 500).json(result);
+        }
+
+        // Set headers for file download
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename=${result.data.filename}`
+        );
+
+        // Send the file buffer
+        return res.send(result.data.buffer);
+    } catch (error) {
+        console.error('Export user details error:', error);
+        return res.status(500).json(
+            messageHandler(
+                error.message || 'Failed to export user details',
+                false,
+                500
+            )
         );
     }
 };
